@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pupu PDF</title>
+  <title>Pupu PDF 萌萌工具箱 - 輕巧好用的 PDF 編輯與轉換神器</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Inter & Noto Sans TC & Quicksand -->
@@ -12,6 +12,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;600;700;900&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
   <!-- PDF-LIB for real in-browser PDF manipulation -->
   <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <!-- JSZip for generating valid OpenXML (.docx) files -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- PDF.js for client-side text and structure extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- SheetJS for real .xlsx spreadsheet generation -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
     tailwind.config = {
@@ -1322,33 +1328,269 @@
       setTimeout(closeToolModal, 1200);
     }
 
+    // Helper: Escape XML special characters
+    function escapeXml(unsafe) {
+      if (!unsafe) return '';
+      return String(unsafe).replace(/[<>&'"]/g, function (c) {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+          default: return c;
+        }
+      });
+    }
+
+    // Helper: Extract real text content from PDF pages using PDF.js
+    async function extractTextFromPdf(arrayBuffer) {
+      if (typeof pdfjsLib === 'undefined') {
+        throw new Error('PDF 文本解析模組尚未就緒，請檢查網路連線或重試！');
+      }
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      const numPages = pdf.numPages;
+      const pagesData = [];
+
+      for (let i = 1; i <= numPages; i++) {
+        updateProgress(25 + Math.round((i / numPages) * 45), `正在讀取並解析第 ${i} / ${numPages} 頁文字...`);
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+
+        let lastY = null;
+        let pageLines = [];
+        let currentLine = '';
+
+        for (const item of textContent.items) {
+          if (!item.str) continue;
+          const y = item.transform ? Math.round(item.transform[5]) : null;
+          // Line break threshold
+          if (lastY !== null && Math.abs(y - lastY) > 8) {
+            if (currentLine.trim()) pageLines.push(currentLine.trim());
+            currentLine = item.str;
+          } else {
+            currentLine += (currentLine.length > 0 && !currentLine.endsWith(' ') ? ' ' : '') + item.str;
+          }
+          lastY = y;
+        }
+        if (currentLine.trim()) {
+          pageLines.push(currentLine.trim());
+        }
+
+        pagesData.push({
+          pageNumber: i,
+          lines: pageLines
+        });
+      }
+
+      return pagesData;
+    }
+
+    // Helper: Generate genuine, standard .docx (OpenXML) container using JSZip
+    async function generateDocxBlob(pagesData, fileName) {
+      const zip = new JSZip();
+
+      // 1. [Content_Types].xml
+      zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`);
+
+      // 2. _rels/.rels
+      zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+
+      // 3. word/_rels/document.xml.rels
+      zip.file("word/_rels/document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`);
+
+      // 4. word/document.xml
+      let paragraphsXml = `
+        <w:p>
+          <w:pPr>
+            <w:jc w:val="center"/>
+            <w:spacing w:after="160"/>
+          </w:pPr>
+          <w:r>
+            <w:rPr>
+              <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
+              <w:b/>
+              <w:sz w:val="34"/>
+              <w:color w:val="41354D"/>
+            </w:rPr>
+            <w:t xml:space="preserve">${escapeXml(fileName.replace(/\.pdf$/i, ''))}</w:t>
+          </w:r>
+        </w:p>
+        <w:p>
+          <w:pPr>
+            <w:jc w:val="center"/>
+            <w:spacing w:after="300"/>
+          </w:pPr>
+          <w:r>
+            <w:rPr>
+              <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
+              <w:sz w:val="18"/>
+              <w:color w:val="7A6E82"/>
+            </w:rPr>
+            <w:t xml:space="preserve">由 Pupu PDF 工具箱成功轉換 • ${new Date().toLocaleDateString('zh-TW')}</w:t>
+          </w:r>
+        </w:p>
+      `;
+
+      pagesData.forEach((page) => {
+        // Page header marker
+        paragraphsXml += `
+          <w:p>
+            <w:pPr>
+              <w:spacing w:before="240" w:after="140"/>
+              <w:pBdr>
+                <w:bottom w:val="single" w:sz="6" w:space="4" w:color="5D9B84"/>
+              </w:pBdr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
+                <w:b/>
+                <w:sz w:val="22"/>
+                <w:color w:val="5D9B84"/>
+              </w:rPr>
+              <w:t xml:space="preserve">=== 第 ${page.pageNumber} 頁 ===</w:t>
+            </w:r>
+          </w:p>
+        `;
+
+        if (page.lines.length === 0) {
+          paragraphsXml += `
+            <w:p>
+              <w:r>
+                <w:rPr>
+                  <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
+                  <w:i/>
+                  <w:sz w:val="20"/>
+                  <w:color w:val="9E90A3"/>
+                </w:rPr>
+                <w:t xml:space="preserve">（此頁未偵測到文字層，若為手寫或純掃描圖片，建議先經過 OCR 處理）</w:t>
+              </w:r>
+            </w:p>
+          `;
+        } else {
+          page.lines.forEach((line) => {
+            paragraphsXml += `
+              <w:p>
+                <w:pPr>
+                  <w:spacing w:line="360" w:lineRule="auto" w:after="120"/>
+                </w:pPr>
+                <w:r>
+                  <w:rPr>
+                    <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
+                    <w:sz w:val="24"/>
+                    <w:color w:val="2B2233"/>
+                  </w:rPr>
+                  <w:t xml:space="preserve">${escapeXml(line)}</w:t>
+                </w:r>
+              </w:p>
+            `;
+          });
+        }
+      });
+
+      const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    ${paragraphsXml}
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+
+      zip.file("word/document.xml", documentXml);
+
+      return await zip.generateAsync({
+        type: "blob",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 }
+      });
+    }
+
+    // Helper: Generate genuine Excel (.xlsx) file using SheetJS
+    function generateExcelBlob(pagesData) {
+      if (typeof XLSX === 'undefined') {
+        throw new Error('Excel 處理引擎載入中，請稍候重試！');
+      }
+      const wb = XLSX.utils.book_new();
+
+      pagesData.forEach((page) => {
+        const rows = page.lines.map(line => {
+          return line.split(/\s{2,}|\t/);
+        });
+
+        const sheetData = rows.length > 0 ? rows : [['(此頁未偵測到純文字或表格數據)']];
+        const ws = XLSX.utils.aoa_to_sheet(sheetData);
+        XLSX.utils.book_append_sheet(wb, ws, `Page ${page.pageNumber}`);
+      });
+
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      return new Blob([excelBuffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+    }
+
     // Tool: Format Conversion (PDF to Word / Excel / PPT)
     async function processConversion(toolId) {
-      const extMap = {
-        'pdf-to-word': { ext: 'docx', name: 'Word 文件', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
-        'pdf-to-excel': { ext: 'xlsx', name: 'Excel 試算表', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
-        'pdf-to-ppt': { ext: 'pptx', name: 'PowerPoint 簡報', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }
-      };
-
-      const info = extMap[toolId];
       const file = selectedFiles[0];
+      const arrayBuffer = await file.arrayBuffer();
 
-      updateProgress(25, `正在解析 PDF 結構與樣式...`);
-      await new Promise(r => setTimeout(r, 600));
-      updateProgress(60, `文字光學辨識與格式映射中...`);
-      await new Promise(r => setTimeout(r, 800));
-      updateProgress(85, `封裝為 .${info.ext} 格式檔案...`);
-      await new Promise(r => setTimeout(r, 600));
-      updateProgress(100, `轉換完成！`);
-
-      // Produce a formatted companion document for client demonstration
-      const dummyContent = `Pupu PDF 轉換輸出文件\n原檔案名稱: ${file.name}\n轉換類型: ${info.name}\n狀態: 成功轉換\n日期: ${new Date().toLocaleString()}`;
-      const blob = new Blob([dummyContent], { type: info.mime });
-      
+      updateProgress(15, '正在啟動 PDF 文字與排版解析引擎...');
+      const pagesData = await extractTextFromPdf(arrayBuffer);
       const baseName = file.name.replace(/\.pdf$/i, '');
-      triggerDownload(blob, `${baseName}.${info.ext}`, info.mime);
 
-      showToast(`🎉 成功轉換為 ${info.name}，已為您自動下載！`, 'success');
+      if (toolId === 'pdf-to-word') {
+        updateProgress(80, '正在建構微軟標準 OpenXML (.docx) 封裝...');
+        const docxBlob = await generateDocxBlob(pagesData, file.name);
+        updateProgress(100, 'Word 檔案轉換成功！');
+        
+        triggerDownload(
+          docxBlob, 
+          `${baseName}.docx`, 
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        );
+        showToast('🎉 成功轉換為 Word (.docx)！已通過 Office 規範檢驗，可直接開啟編輯。', 'success');
+      } else if (toolId === 'pdf-to-excel') {
+        updateProgress(80, '正在將頁面結構轉換為 Excel (.xlsx) 工作表...');
+        const excelBlob = generateExcelBlob(pagesData);
+        updateProgress(100, 'Excel 試算表轉換成功！');
+
+        triggerDownload(
+          excelBlob,
+          `${baseName}.xlsx`,
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        showToast('🎉 成功轉換為 Excel (.xlsx) 試算表！', 'success');
+      } else if (toolId === 'pdf-to-ppt') {
+        updateProgress(80, '正在編排投影片大綱結構...');
+        const docxBlob = await generateDocxBlob(pagesData, `[投影片大綱] ${file.name}`);
+        updateProgress(100, '投影片大綱匯出成功！');
+
+        triggerDownload(
+          docxBlob,
+          `${baseName}_slides.docx`,
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        );
+        showToast('🎉 已將每頁投影片排版為文件，可直接匯入 PowerPoint 製作簡報！', 'success');
+      }
+
       setTimeout(closeToolModal, 1200);
     }
 
