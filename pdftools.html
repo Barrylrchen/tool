@@ -986,6 +986,7 @@
     fileInput.addEventListener('change', (e) => {
       if (e.target.files.length) {
         handleFilesSelected(e.target.files);
+        fileInput.value = ''; // 清空以支援重複追加或選取同名檔案
       }
     });
 
@@ -1021,16 +1022,17 @@
 
       selectedFiles.forEach((file, index) => {
         const item = document.createElement('div');
-        item.className = 'flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-gray-200 text-xs';
+        item.className = 'flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-[#EEDBCA] text-xs shadow-xs';
         
         const sizeFormatted = (file.size / 1024 / 1024).toFixed(2) + ' MB';
         item.innerHTML = `
           <div class="flex items-center gap-2 truncate">
+            <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-[#FFF2DE] text-retro-terracotta border border-[#F4DCB5]">#${index + 1}</span>
             <span class="text-brand-pink font-bold">📄</span>
-            <span class="font-medium text-gray-700 truncate max-w-[220px]" title="${file.name}">${file.name}</span>
-            <span class="text-[10px] text-gray-400">(${sizeFormatted})</span>
+            <span class="font-medium text-retro-dark truncate max-w-[210px]" title="${file.name}">${file.name}</span>
+            <span class="text-[10px] text-[#8C7A92]">(${sizeFormatted})</span>
           </div>
-          <button onclick="removeFile(${index})" class="text-gray-400 hover:text-red-500 font-bold px-1.5">×</button>
+          <button onclick="removeFile(${index})" class="text-[#8C7A92] hover:text-retro-brick font-black px-1.5 transition">✕</button>
         `;
         filesList.appendChild(item);
       });
@@ -1507,12 +1509,79 @@
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
+    // 核心動作分發執行控制器（修復按鈕點擊無反應問題）
+    async function executeToolAction() {
+      if (!currentToolId) return;
+      const config = TOOLS_CONFIG[currentToolId];
+      if (!config) return;
+
+      // 檔案數量基本檢驗
+      if (config.multiple) {
+        if (selectedFiles.length < 2) {
+          showToast('合併 PDF 請至少新增 2 個檔案唷！', 'warning');
+          return;
+        }
+      } else {
+        if (selectedFiles.length === 0) {
+          showToast('請先選取或拖曳 PDF 檔案！', 'warning');
+          return;
+        }
+      }
+
+      modalActionBtn.disabled = true;
+      progressBox.classList.remove('hidden');
+      updateProgress(10, '準備處理中...');
+
+      try {
+        switch (currentToolId) {
+          case 'merge':
+            await processMerge();
+            break;
+          case 'compress':
+            await processCompress();
+            break;
+          case 'page-numbers':
+            await processPageNumbers();
+            break;
+          case 'watermark':
+            await processWatermark();
+            break;
+          case 'rotate':
+            await processRotate();
+            break;
+          case 'encrypt':
+            await processEncrypt();
+            break;
+          case 'organize':
+            await processOrganize();
+            break;
+          case 'pdf-to-word':
+          case 'pdf-to-excel':
+          case 'pdf-to-ppt':
+            await processConversion(currentToolId);
+            break;
+          case 'pdf-to-img':
+            await processPdfToImage();
+            break;
+          default:
+            await simulateGenericProcessing(config.title);
+            break;
+        }
+      } catch (error) {
+        console.error('執行工具發生錯誤:', error);
+        showToast(`處理失敗：${error.message || '未知錯誤，請檢查檔案'}`, 'warning');
+        resetProgress();
+      } finally {
+        modalActionBtn.disabled = false;
+      }
+    }
+
     // Tool 1: Rotate PDF (Real PDF-Lib)
     async function processRotate() {
       updateProgress(40, '旋轉 PDF 頁面角度中...');
       const file = selectedFiles[0];
       const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
       
       const angleInput = document.querySelector('input[name="rotateAngle"]:checked');
       const addAngle = parseInt(angleInput ? angleInput.value : '90', 10);
@@ -1532,26 +1601,34 @@
       setTimeout(closeToolModal, 1200);
     }
 
-    // Tool 2: Merge PDF (Real PDF-Lib)
+    // Tool 2: Merge PDF (Real PDF-Lib 完整修復與進度回饋)
     async function processMerge() {
-      updateProgress(30, '整合多個 PDF 檔案中...');
+      if (selectedFiles.length < 2) {
+        showToast('請至少新增 2 個 PDF 檔案才能合併喔！', 'warning');
+        return;
+      }
+
+      updateProgress(15, '正在啟動 PDF 合併引擎...');
       const mergedPdf = await PDFDocument.create();
 
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
-        updateProgress(30 + Math.round((i / selectedFiles.length) * 50), `正在合併: ${file.name}`);
+        const stepPercent = 15 + Math.round(((i + 1) / selectedFiles.length) * 70);
+        updateProgress(stepPercent, `正在整合第 ${i + 1}/${selectedFiles.length} 份: ${file.name}`);
+        
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await PDFDocument.load(arrayBuffer);
+        // 啟用 ignoreEncryption 避免部分帶有權限旗標的 PDF 報錯中斷
+        const pdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
         const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
         copiedPages.forEach((page) => mergedPdf.addPage(page));
       }
 
-      updateProgress(90, '生成最終合併檔案...');
+      updateProgress(92, '正在封裝並生成最終合併檔案...');
       const mergedBytes = await mergedPdf.save();
-      updateProgress(100, '合併成功！');
+      updateProgress(100, '合併成功！開始下載！');
 
       triggerDownload(mergedBytes, 'merged_pupu_document.pdf');
-      showToast('🎉 所有 PDF 已成功合併成一本！', 'success');
+      showToast(`🎉 成功將 ${selectedFiles.length} 份 PDF 合併為單一檔案！`, 'success');
       setTimeout(closeToolModal, 1200);
     }
 
@@ -1560,82 +1637,7 @@
       updateProgress(40, '刻劃浮水印文字...');
       const file = selectedFiles[0];
       const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
-
-      const watermarkText = document.getElementById('watermarkText').value || 'SAMPLE';
-      const opacityVal = parseFloat(document.getElementById('watermarkOpacity').value || '0.25');
-      const angleVal = parseInt(document.getElementById('watermarkAngle').value || '45', 10);
-
-      const pages = pdfDoc.getPages();
-      pages.forEach(page => {
-        const { width, height } = page.getSize();
-        page.drawText(watermarkText, {
-          x: width / 4,
-          y: height / 2,
-          size: Math.min(width, height) / 14,
-          rotate: degrees(angleVal),
-          opacity: opacityVal,
-          color: rgb(0.8, 0.2, 0.3)
-        });
-      });
-
-      updateProgress(90, '浮水印套用中...');
-      const pdfBytes = await pdfDoc.save();
-      updateProgress(100, '完成！');
-
-      triggerDownload(pdfBytes, `watermarked_${file.name}`);
-      showToast('🎉 水印添加完成！版權保護好放心。', 'success');
-      setTimeout(closeToolModal, 1200);
-    }
-
-    // Tool 4: Add Page Numbers (Real PDF-Lib)
-    async function processPageNumbers() {
-      updateProgress(40, '計算頁面並加入頁碼...');
-      const file = selectedFiles[0];
-      const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
-
-      const pos = document.getElementById('pageNumPosition').value;
-      const fmt = document.getElementById('pageNumFormat').value;
-
-      const pages = pdfDoc.getPages();
-      const totalPages = pages.length;
-
-      pages.forEach((page, index) => {
-        const pageNum = index + 1;
-        const textStr = fmt === 'full' ? `${pageNum} / ${totalPages}` : `${pageNum}`;
-        const { width, height } = page.getSize();
-
-        let posX = width / 2 - 10;
-        let posY = 25;
-
-        if (pos === 'bottom-right') {
-          posX = width - 60;
-          posY = 25;
-        } else if (pos === 'top-right') {
-          posX = width - 60;
-          posY = height - 25;
-        }
-
-        page.drawText(textStr, {
-          x: posX,
-          y: posY,
-          size: 10,
-          color: rgb(0.4, 0.4, 0.45)
-        });
-      });
-
-      updateProgress(90, '儲存頁碼格式...');
-      const pdfBytes = await pdfDoc.save();
-      updateProgress(100, '完成！');
-
-      triggerDownload(pdfBytes, `numbered_${file.name}`);
-      showToast('🎉 頁碼標記完成，排版更整齊啦！', 'success');
-      setTimeout(closeToolModal, 1200);
-    }
-
-    // Tool: Organize (Page Selection/Removal)
-    async function processOrganize() {
+      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
       updateProgress(40, '分析頁面結構...');
       const file = selectedFiles[0];
       const arrayBuffer = await file.arrayBuffer();
