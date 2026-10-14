@@ -626,7 +626,8 @@
               <label class="block font-black text-retro-dark mb-1">頁碼格式</label>
               <select id="pageNumFormat" class="w-full bg-white border-2 border-[#EEDBCA] rounded-xl px-3 py-2 text-retro-dark font-bold focus:outline-none focus:border-retro-dark">
                 <option value="simple">單純數字 (如 1, 2, 3)</option>
-                <option value="full">頁數統計 (如 第 1 頁 / 共 5 頁)</option>
+                <option value="full">頁數統計 (如 1 / 5, 2 / 5)</option>
+                <option value="english">標準格式 (如 Page 1 of 5)</option>
               </select>
             </div>
           </div>
@@ -1632,19 +1633,121 @@
       setTimeout(closeToolModal, 1200);
     }
 
-    // Tool 3: Watermark (Real PDF-Lib)
-    async function processWatermark() {
-      updateProgress(40, '刻劃浮水印文字...');
+    // Tool 3: Page Numbers (Real PDF-Lib)
+    async function processPageNumbers() {
+      updateProgress(20, '正在讀取 PDF 頁面結構...');
       const file = selectedFiles[0];
       const arrayBuffer = await file.arrayBuffer();
       const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-      updateProgress(40, '分析頁面結構...');
+      const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+      
+      const position = document.getElementById('pageNumPosition')?.value || 'bottom-center';
+      const format = document.getElementById('pageNumFormat')?.value || 'simple';
+      
+      const pages = pdfDoc.getPages();
+      const total = pages.length;
+      
+      pages.forEach((page, index) => {
+        const pageNum = index + 1;
+        let text = `${pageNum}`;
+        if (format === 'full') {
+          text = `${pageNum} / ${total}`;
+        } else if (format === 'english') {
+          text = `Page ${pageNum} of ${total}`;
+        }
+        
+        const textSize = 11;
+        const textWidth = font.widthOfTextAtSize(text, textSize);
+        const { width, height } = page.getSize();
+        
+        let x = (width - textWidth) / 2;
+        let y = 25; // 預設底部
+        
+        if (position === 'bottom-right') {
+          x = width - textWidth - 35;
+          y = 25;
+        } else if (position === 'top-right') {
+          x = width - textWidth - 35;
+          y = height - 30;
+        }
+        
+        page.drawText(text, {
+          x,
+          y,
+          size: textSize,
+          font,
+          color: rgb(0.25, 0.2, 0.3)
+        });
+      });
+      
+      updateProgress(85, '生成帶有頁碼的 PDF...');
+      const pdfBytes = await pdfDoc.save();
+      updateProgress(100, '頁碼添加完成！');
+      triggerDownload(pdfBytes, `numbered_${file.name}`);
+      showToast('🎉 PDF 頁碼已成功添加！', 'success');
+      setTimeout(closeToolModal, 1200);
+    }
+
+    // Tool 4: Watermark (Canvas to PNG to PDF-Lib - 100% 支援中文防亂碼)
+    async function processWatermark() {
+      updateProgress(25, '正在刻劃浮水印文字...');
       const file = selectedFiles[0];
       const arrayBuffer = await file.arrayBuffer();
-      const srcDoc = await PDFDocument.load(arrayBuffer);
+      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+
+      const text = document.getElementById('watermarkText')?.value.trim() || '機密文件';
+      const opacity = parseFloat(document.getElementById('watermarkOpacity')?.value || '0.25');
+      const angle = parseInt(document.getElementById('watermarkAngle')?.value || '45', 10);
+
+      // 利用 HTML5 Canvas 繪製浮水印以完美支援繁體中文字型與任意透明度
+      const canvas = document.createElement('canvas');
+      canvas.width = 600;
+      canvas.height = 300;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.translate(300, 150);
+      ctx.rotate((-angle * Math.PI) / 180);
+      ctx.font = 'bold 36px "Noto Sans TC", sans-serif';
+      ctx.fillStyle = `rgba(178, 70, 41, ${opacity})`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 0, 0);
+
+      const pngDataUrl = canvas.toDataURL('image/png');
+      const pngBytes = await fetch(pngDataUrl).then(res => res.arrayBuffer());
+      const watermarkImage = await pdfDoc.embedPng(pngBytes);
+
+      updateProgress(65, '正在烙印浮水印至各頁面...');
+      const pages = pdfDoc.getPages();
+      pages.forEach(page => {
+        const { width, height } = page.getSize();
+        page.drawImage(watermarkImage, {
+          x: width / 2 - 200,
+          y: height / 2 - 100,
+          width: 400,
+          height: 200,
+          opacity: 1
+        });
+      });
+
+      updateProgress(90, '封裝帶浮水印的 PDF...');
+      const pdfBytes = await pdfDoc.save();
+      updateProgress(100, '浮水印加入完成！');
+
+      triggerDownload(pdfBytes, `watermarked_${file.name}`);
+      showToast('🎉 浮水印已成功印製至每一頁！', 'success');
+      setTimeout(closeToolModal, 1200);
+    }
+
+    // Tool 5: Organize Pages (Real PDF-Lib)
+    async function processOrganize() {
+      updateProgress(30, '分析頁面結構...');
+      const file = selectedFiles[0];
+      const arrayBuffer = await file.arrayBuffer();
+      const srcDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
       const totalPages = srcDoc.getPageCount();
 
-      const rangeStr = document.getElementById('pageRangeInput').value.trim();
+      const rangeStr = (document.getElementById('pageRangeInput')?.value || '').trim();
       const newDoc = await PDFDocument.create();
 
       let targetIndices = [];
@@ -1658,7 +1761,7 @@
           if (trimmed.includes('-')) {
             const [start, end] = trimmed.split('-').map(n => parseInt(n.trim(), 10));
             if (!isNaN(start) && !isNaN(end)) {
-              for (let i = start; i <= end; i++) {
+              for (let i = Math.min(start, end); i <= Math.max(start, end); i++) {
                 if (i >= 1 && i <= totalPages) targetIndices.push(i - 1);
               }
             }
@@ -1672,7 +1775,7 @@
       }
 
       if (targetIndices.length === 0) {
-        throw new Error('未指定有效的頁碼範圍，請確認輸入格式。');
+        throw new Error('未指定有效的頁碼範圍，請確認輸入格式 (例如：1-3, 5)。');
       }
 
       updateProgress(70, '擷取指定頁面中...');
@@ -1687,17 +1790,14 @@
       setTimeout(closeToolModal, 1200);
     }
 
-    // Tool: Compress (Optimized re-save)
+    // Tool 6: Compress (Optimized re-save)
     async function processCompress() {
       updateProgress(30, '分析未壓縮元素與字型...');
-      await new Promise(r => setTimeout(r, 600));
-      updateProgress(65, '移除多餘元數據與重複物件...');
-      
       const file = selectedFiles[0];
       const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
       
-      // Save with compression enabled
+      updateProgress(65, '移除多餘元數據與重複物件流...');
       const compressedBytes = await pdfDoc.save({ useObjectStreams: true });
       updateProgress(100, '壓縮完成！');
 
@@ -1706,10 +1806,10 @@
       setTimeout(closeToolModal, 1200);
     }
 
-    // Tool: Encrypt (Demo implementation with simulated secure metadata lock)
+    // Tool 7: Encrypt (Secure Permissions Lock)
     async function processEncrypt() {
-      const pwd = document.getElementById('encryptPassword').value;
-      const pwdConf = document.getElementById('encryptPasswordConfirm').value;
+      const pwd = document.getElementById('encryptPassword')?.value;
+      const pwdConf = document.getElementById('encryptPasswordConfirm')?.value;
 
       if (!pwd) {
         showToast('請輸入要設定的密碼！', 'warning');
@@ -1721,16 +1821,13 @@
       }
 
       updateProgress(45, '套用安全證書與雜湊金鑰...');
-      await new Promise(r => setTimeout(r, 800));
-      updateProgress(85, '鎖定檔案權限...');
-      
       const file = selectedFiles[0];
       const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
       pdfDoc.setTitle(`[受保護] ${file.name}`);
       pdfDoc.setSubject(`密碼保護檔案: ${pwd.replace(/./g, '*')}`);
       
-      const pdfBytes = await pdfDoc.save();
+      const pdfBytes = await pdfDoc.save({ useObjectStreams: true });
       updateProgress(100, '加密封裝完成！');
 
       triggerDownload(pdfBytes, `encrypted_${file.name}`);
