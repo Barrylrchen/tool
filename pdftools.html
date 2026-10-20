@@ -1598,42 +1598,42 @@
             break;
           case 'pdf-to-img':
             await processPdfToImage();
-            break;
-          default:
-            await simulateGenericProcessing(config.title);
-            break;
-        }
-      } catch (error) {
-        console.error('執行工具發生錯誤:', error);
-        showToast(`處理失敗：${error.message || '未知錯誤，請檢查檔案'}`, 'warning');
-        resetProgress();
-      } finally {
-        modalActionBtn.disabled = false;
-      }
-    }
-
-    // Tool 1: Rotate PDF (Real PDF-Lib)
+    // Tool 1: Rotate PDF (Real PDF-Lib - 支援單頁自訂與批次角度寫入)
     async function processRotate() {
-      updateProgress(40, '旋轉 PDF 頁面角度中...');
+      updateProgress(30, '正在讀取 PDF 文件結構與各頁面旋轉角度...');
       const file = selectedFiles[0];
       const arrayBuffer = await file.arrayBuffer();
       const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-      
-      const angleInput = document.querySelector('input[name="rotateAngle"]:checked');
-      const addAngle = parseInt(angleInput ? angleInput.value : '90', 10);
-
       const pages = pdfDoc.getPages();
-      pages.forEach(page => {
-        const currentRotation = page.getRotation().angle;
-        page.setRotation(degrees(currentRotation + addAngle));
-      });
+      const total = pages.length;
+
+      const keys = Object.keys(pageRotationsMap);
+      const hasCustomRotations = keys.some(p => pageRotationsMap[p] !== 0);
+
+      // 如果使用者有透過縮圖單獨旋轉，則按照每一頁設定的角度套用
+      if (hasCustomRotations) {
+        pages.forEach((page, index) => {
+          const pageNum = index + 1;
+          const addAngle = pageRotationsMap[pageNum] || 0;
+          if (addAngle !== 0) {
+            const currentRotation = page.getRotation().angle;
+            page.setRotation(degrees((currentRotation + addAngle) % 360));
+          }
+        });
+      } else {
+        // 若完全未點選單頁，則預設順時針翻轉 90 度
+        pages.forEach(page => {
+          const currentRotation = page.getRotation().angle;
+          page.setRotation(degrees((currentRotation + 90) % 360));
+        });
+      }
 
       updateProgress(85, '封裝旋轉後的 PDF...');
       const pdfBytes = await pdfDoc.save();
-      updateProgress(100, '完成！準備下載！');
+      updateProgress(100, '旋轉完成！準備下載！');
       
       triggerDownload(pdfBytes, `rotated_${file.name}`);
-      showToast('🎉 PDF 旋轉完成，已開始自動下載！', 'success');
+      showToast('🎉 PDF 頁面旋轉完成，已開始自動下載！', 'success');
       setTimeout(closeToolModal, 1200);
     }
 
