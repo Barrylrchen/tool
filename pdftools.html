@@ -574,7 +574,7 @@
   </footer>
 
   <script>
-    // Definitions of all 10 tools using the exact palette
+    // Definitions of all 11 tools using the exact palette
     const TOOLS_CONFIG = {
       'compress': {
         title: '壓縮PDF',
@@ -589,17 +589,17 @@
           <div>
             <label class="block font-black text-retro-dark mb-1.5">壓縮強度模式</label>
             <div class="grid grid-cols-3 gap-2">
-              <label class="cursor-pointer border-2 border-[#EEDBCA] rounded-xl p-2.5 text-center bg-white hover:border-[#5D9B84]">
+              <label class="cursor-pointer border-2 border-[#EEDBCA] rounded-xl p-2.5 text-center bg-white hover:border-[#5D9B84] transition">
                 <input type="radio" name="compressLevel" value="low" class="accent-[#5D9B84]">
                 <div class="font-black text-retro-dark mt-1">輕度壓縮</div>
                 <div class="text-[10px] text-[#6B5C77]">極高畫質</div>
               </label>
-              <label class="cursor-pointer border-2 border-[#5D9B84] rounded-xl p-2.5 text-center bg-[#EFF8F5]">
+              <label class="cursor-pointer border-2 border-[#5D9B84] rounded-xl p-2.5 text-center bg-[#EFF8F5] transition">
                 <input type="radio" name="compressLevel" value="recommended" checked class="accent-[#5D9B84]">
                 <div class="font-black text-[#2E6852] mt-1">推薦模式</div>
                 <div class="text-[10px] text-[#3E7461] font-bold">平衡體積與畫質</div>
               </label>
-              <label class="cursor-pointer border-2 border-[#EEDBCA] rounded-xl p-2.5 text-center bg-white hover:border-[#5D9B84]">
+              <label class="cursor-pointer border-2 border-[#EEDBCA] rounded-xl p-2.5 text-center bg-white hover:border-[#5D9B84] transition">
                 <input type="radio" name="compressLevel" value="high" class="accent-[#5D9B84]">
                 <div class="font-black text-retro-dark mt-1">強力壓縮</div>
                 <div class="text-[10px] text-[#6B5C77]">最小體積</div>
@@ -695,7 +695,7 @@
       },
       'rotate': {
         title: '旋轉PDF',
-        desc: '將頁面旋轉 90度、180度或 270度。',
+        desc: '支援整份批次翻轉或在預覽窗格中個別翻轉單頁。',
         icon: '🔄',
         bg: '#FFF6EE',
         color: '#EA8F3C',
@@ -703,24 +703,38 @@
         multiple: false,
         btnText: '旋轉並下載 PDF',
         optionsHtml: `
-          <div>
-            <label class="block font-black text-retro-dark mb-1.5">旋轉方向</label>
-            <div class="grid grid-cols-3 gap-2">
-              <label class="cursor-pointer border-2 border-retro-orange bg-[#FFF6EE] rounded-xl p-2.5 text-center">
-                <input type="radio" name="rotateAngle" value="90" checked class="accent-retro-orange">
-                <div class="font-black text-[#C26B1E] mt-1">順時針 90°</div>
-                <div class="text-[10px] text-[#A05210] font-bold">向右翻轉</div>
-              </label>
-              <label class="cursor-pointer border-2 border-[#EEDBCA] bg-white rounded-xl p-2.5 text-center hover:border-retro-orange">
-                <input type="radio" name="rotateAngle" value="180" class="accent-retro-orange">
-                <div class="font-black text-retro-dark mt-1">翻轉 180°</div>
-                <div class="text-[10px] text-[#6B5C77]">上下顛倒</div>
-              </label>
-              <label class="cursor-pointer border-2 border-[#EEDBCA] bg-white rounded-xl p-2.5 text-center hover:border-retro-orange">
-                <input type="radio" name="rotateAngle" value="270" class="accent-retro-orange">
-                <div class="font-black text-retro-dark mt-1">逆時針 90°</div>
-                <div class="text-[10px] text-[#6B5C77]">向左翻轉</div>
-              </label>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <span class="font-black text-retro-dark text-xs flex items-center gap-1.5">
+                <span>🔄 頁面旋轉預覽與控制</span>
+                <span id="rotateSummaryBadge" class="text-[10px] bg-[#FFF2DE] text-retro-brick font-bold px-2 py-0.5 rounded-full border border-[#F4DCB5]">全部預設 (0°)</span>
+              </span>
+              <div class="flex items-center gap-1.5">
+                <button type="button" onclick="batchRotateAll(90)" class="text-[11px] font-black px-2.5 py-1 rounded-lg bg-[#FFF6EE] hover:bg-[#FFE8D6] text-[#C26B1E] border border-[#F9D6BA] transition">
+                  全部順時針 90°
+                </button>
+                <button type="button" onclick="batchRotateAll(-90)" class="text-[11px] font-black px-2.5 py-1 rounded-lg bg-[#FFF6EE] hover:bg-[#FFE8D6] text-[#C26B1E] border border-[#F9D6BA] transition">
+                  全部逆時針 90°
+                </button>
+                <button type="button" onclick="resetAllRotations()" class="text-[11px] font-black px-2.5 py-1 rounded-lg bg-white hover:bg-gray-100 text-[#6B5C77] border border-[#EEDBCA] transition">
+                  重置
+                </button>
+              </div>
+            </div>
+
+            <!-- 預覽載入中與提示 -->
+            <div id="rotateThumbnailsLoading" class="hidden py-8 text-center text-xs font-bold text-[#8C7A92]">
+              <div class="inline-block animate-spin text-xl mb-1.5">⏳</div>
+              <p>正在載入頁面縮圖以供精準旋轉...</p>
+            </div>
+
+            <div id="rotateThumbnailsEmpty" class="py-6 text-center text-xs font-semibold text-[#8C7A92] bg-[#FAF6F0] rounded-xl border border-dashed border-[#EEDBCA]">
+              <span>💡 請先在上方選取或拖曳 PDF 檔案，即可在此直觀旋轉每一頁！</span>
+            </div>
+
+            <!-- 縮圖卡片清單 -->
+            <div id="rotateThumbnailsGrid" class="hidden grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-64 overflow-y-auto p-2 bg-[#FAF6F0] rounded-xl border border-[#EEDBCA]">
+              <!-- 動態產生旋轉預覽縮圖 -->
             </div>
           </div>
         `
@@ -875,7 +889,6 @@
 
               <!-- 自訂頁面與縮圖預覽窗格 -->
               <div id="imgCustomPageContainer" class="hidden space-y-2.5 bg-white border-2 border-[#84D2DE]/60 p-3 rounded-2xl shadow-xs">
-                
                 <div class="flex items-center justify-between flex-wrap gap-2">
                   <div class="flex items-center gap-1.5">
                     <span class="font-black text-xs text-retro-dark">📄 頁面即時預覽與勾選</span>
@@ -891,7 +904,6 @@
                   </div>
                 </div>
 
-                <!-- 縮圖滾動預覽展示區 -->
                 <div id="thumbnailsLoading" class="hidden py-8 text-center text-xs font-bold text-[#8C7A92]">
                   <div class="inline-block animate-spin text-xl mb-1.5">⏳</div>
                   <p>正在生成高清晰頁面預覽縮圖...</p>
@@ -905,7 +917,6 @@
                   <!-- 頁面縮圖卡片動態插入 -->
                 </div>
 
-                <!-- 手動頁碼輸入框 (雙向聯動) -->
                 <div class="pt-1 border-t border-[#EEDBCA]/70">
                   <div class="flex items-center gap-2">
                     <span class="text-[11px] font-bold text-[#6B5C77] shrink-0">頁碼範圍：</span>
@@ -943,6 +954,7 @@
     let selectedFiles = [];
     let currentPdfDocForPreview = null;
     let selectedCustomPageSet = new Set();
+    let pageRotationsMap = {}; // 記錄各頁獨立旋轉角度 { 1: 90, 2: 180 }
     const { PDFDocument, rgb, degrees } = PDFLib;
 
     const modal = document.getElementById('toolModal');
@@ -977,6 +989,7 @@
 
       document.getElementById('toolOptionsPanel').innerHTML = config.optionsHtml;
       modalActionBtn.querySelector('span:first-child').textContent = config.btnText;
+      modalActionBtn.disabled = false;
 
       clearFiles();
       resetProgress();
@@ -1022,7 +1035,7 @@
     fileInput.addEventListener('change', (e) => {
       if (e.target.files.length) {
         handleFilesSelected(e.target.files);
-        fileInput.value = ''; // 清空以支援重複追加或選取同名檔案
+        fileInput.value = '';
       }
     });
 
@@ -1051,6 +1064,7 @@
       if (selectedFiles.length === 0) {
         fileListContainer.classList.add('hidden');
         resetThumbnailsState();
+        resetRotateThumbnailsState();
         return;
       }
       fileListContainer.classList.remove('hidden');
@@ -1073,12 +1087,17 @@
         filesList.appendChild(item);
       });
 
-      // 如果在 PDF 轉圖片功能且處於自選指定頁模式，立刻載入縮圖
+      // 轉圖片縮圖聯動
       if (currentToolId === 'pdf-to-img') {
         const pageModeEl = document.querySelector('input[name="imgPageMode"]:checked');
         if (pageModeEl && pageModeEl.value === 'custom') {
           loadPdfThumbnailsForPreview();
         }
+      }
+
+      // 旋轉 PDF 縮圖聯動
+      if (currentToolId === 'rotate') {
+        loadRotateThumbnailsForPreview();
       }
     }
 
@@ -1091,6 +1110,7 @@
       selectedFiles = [];
       fileInput.value = '';
       resetThumbnailsState();
+      resetRotateThumbnailsState();
       renderSelectedFiles();
       resetProgress();
     }
@@ -1099,6 +1119,7 @@
       progressBox.classList.add('hidden');
       progressBar.style.width = '0%';
       progressPercent.textContent = '0%';
+      modalActionBtn.disabled = false;
     }
 
     function resetThumbnailsState() {
@@ -1117,6 +1138,198 @@
       if (count) count.textContent = '已選 0 頁';
     }
 
+    function resetRotateThumbnailsState() {
+      pageRotationsMap = {};
+      const grid = document.getElementById('rotateThumbnailsGrid');
+      const empty = document.getElementById('rotateThumbnailsEmpty');
+      const loading = document.getElementById('rotateThumbnailsLoading');
+      const summary = document.getElementById('rotateSummaryBadge');
+      if (grid) {
+        grid.innerHTML = '';
+        grid.classList.add('hidden');
+      }
+      if (loading) loading.classList.add('hidden');
+      if (empty) empty.classList.remove('hidden');
+      if (summary) {
+        summary.textContent = '全部預設 (0°)';
+        summary.className = 'text-[10px] bg-[#FFF2DE] text-retro-brick font-bold px-2 py-0.5 rounded-full border border-[#F4DCB5]';
+      }
+    }
+
+    // --- 旋轉 PDF 專屬縮圖預覽與個別頁面翻轉控制 ---
+    async function loadRotateThumbnailsForPreview() {
+      const grid = document.getElementById('rotateThumbnailsGrid');
+      const empty = document.getElementById('rotateThumbnailsEmpty');
+      const loading = document.getElementById('rotateThumbnailsLoading');
+
+      if (!selectedFiles || selectedFiles.length === 0) {
+        if (grid) grid.classList.add('hidden');
+        if (loading) loading.classList.add('hidden');
+        if (empty) empty.classList.remove('hidden');
+        return;
+      }
+
+      if (typeof pdfjsLib === 'undefined') return;
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+
+      if (empty) empty.classList.add('hidden');
+      if (loading) loading.classList.remove('hidden');
+      if (grid) {
+        grid.innerHTML = '';
+        grid.classList.add('hidden');
+      }
+
+      try {
+        const file = selectedFiles[0];
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        currentPdfDocForPreview = await loadingTask.promise;
+        const total = currentPdfDocForPreview.numPages;
+
+        pageRotationsMap = {};
+        for (let p = 1; p <= total; p++) {
+          pageRotationsMap[p] = 0;
+        }
+
+        if (loading) loading.classList.add('hidden');
+        if (grid) grid.classList.remove('hidden');
+
+        for (let pageNum = 1; pageNum <= total; pageNum++) {
+          const card = document.createElement('div');
+          card.id = `rotate-card-${pageNum}`;
+          card.className = 'bg-white rounded-xl p-2 border-2 border-[#EEDBCA] shadow-xs flex flex-col items-center justify-between transition-all hover:border-[#EA8F3C]';
+
+          const canvasWrap = document.createElement('div');
+          canvasWrap.className = 'w-full aspect-[3/4] bg-[#FAF6F0] rounded-lg overflow-hidden flex items-center justify-center relative p-1';
+
+          const canvas = document.createElement('canvas');
+          canvas.id = `rotate-canvas-${pageNum}`;
+          canvas.className = 'max-w-full max-h-full object-contain transition-transform duration-300 transform';
+          canvasWrap.appendChild(canvas);
+
+          // 角度指示標籤
+          const angleBadge = document.createElement('div');
+          angleBadge.id = `rotate-angle-${pageNum}`;
+          angleBadge.className = 'absolute top-1 right-1 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-[#41354D] text-white shadow-xs';
+          angleBadge.textContent = '0°';
+          canvasWrap.appendChild(angleBadge);
+
+          // 頁碼說明
+          const label = document.createElement('div');
+          label.className = 'mt-1 text-[11px] font-black text-retro-dark';
+          label.textContent = `第 ${pageNum} 頁`;
+
+          // 單頁控制按鈕組 (⟲ 90° 與 ⟳ 90°)
+          const controls = document.createElement('div');
+          controls.className = 'flex items-center gap-1.5 mt-1.5 w-full justify-center';
+          controls.innerHTML = `
+            <button type="button" onclick="rotateSinglePage(${pageNum}, -90)" title="逆時針 90°" class="p-1 px-2 text-xs font-black rounded-lg bg-[#FAF6F0] hover:bg-[#FFF6EE] hover:text-[#EA8F3C] border border-[#EEDBCA] transition">
+              ⟲
+            </button>
+            <button type="button" onclick="rotateSinglePage(${pageNum}, 90)" title="順時針 90°" class="p-1 px-2 text-xs font-black rounded-lg bg-[#FAF6F0] hover:bg-[#FFF6EE] hover:text-[#EA8F3C] border border-[#EEDBCA] transition">
+              ⟳
+            </button>
+          `;
+
+          card.appendChild(canvasWrap);
+          card.appendChild(label);
+          card.appendChild(controls);
+          grid.appendChild(card);
+
+          renderSingleThumbnailCanvas(currentPdfDocForPreview, pageNum, canvas);
+        }
+
+        updateRotateSummaryBadge();
+      } catch (err) {
+        console.error('旋轉預覽載入失敗', err);
+        if (loading) loading.classList.add('hidden');
+        if (empty) {
+          empty.textContent = '縮圖載入異常，但仍可直接執行整份翻轉！';
+          empty.classList.remove('hidden');
+        }
+      }
+    }
+
+    // 單頁旋轉觸發
+    function rotateSinglePage(pageNum, deltaAngle) {
+      if (!pageRotationsMap[pageNum]) pageRotationsMap[pageNum] = 0;
+      pageRotationsMap[pageNum] = (pageRotationsMap[pageNum] + deltaAngle) % 360;
+      if (pageRotationsMap[pageNum] < 0) pageRotationsMap[pageNum] += 360;
+
+      applyRotationToCardUi(pageNum);
+      updateRotateSummaryBadge();
+    }
+
+    // 批次旋轉全部頁面
+    function batchRotateAll(deltaAngle) {
+      if (!currentPdfDocForPreview) {
+        showToast('請先選取或拖曳 PDF 檔案以供預覽！', 'warning');
+        return;
+      }
+      for (let p = 1; p <= currentPdfDocForPreview.numPages; p++) {
+        pageRotationsMap[p] = ((pageRotationsMap[p] || 0) + deltaAngle) % 360;
+        if (pageRotationsMap[p] < 0) pageRotationsMap[p] += 360;
+        applyRotationToCardUi(p);
+      }
+      updateRotateSummaryBadge();
+    }
+
+    // 重置所有頁面旋轉
+    function resetAllRotations() {
+      if (!currentPdfDocForPreview) return;
+      for (let p = 1; p <= currentPdfDocForPreview.numPages; p++) {
+        pageRotationsMap[p] = 0;
+        applyRotationToCardUi(p);
+      }
+      updateRotateSummaryBadge();
+    }
+
+    // 更新單頁 Canvas 畫面旋轉
+    function applyRotationToCardUi(pageNum) {
+      const canvas = document.getElementById(`rotate-canvas-${pageNum}`);
+      const angleBadge = document.getElementById(`rotate-angle-${pageNum}`);
+      const card = document.getElementById(`rotate-card-${pageNum}`);
+      const angle = pageRotationsMap[pageNum] || 0;
+
+      if (canvas) {
+        canvas.style.transform = `rotate(${angle}deg)`;
+      }
+      if (angleBadge) {
+        angleBadge.textContent = `${angle}°`;
+        if (angle !== 0) {
+          angleBadge.className = 'absolute top-1 right-1 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-[#EA8F3C] text-white shadow-xs';
+        } else {
+          angleBadge.className = 'absolute top-1 right-1 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-[#41354D] text-white shadow-xs';
+        }
+      }
+      if (card) {
+        if (angle !== 0) {
+          card.classList.add('border-[#EA8F3C]', 'bg-[#FFF9F5]');
+          card.classList.remove('border-[#EEDBCA]', 'bg-white');
+        } else {
+          card.classList.remove('border-[#EA8F3C]', 'bg-[#FFF9F5]');
+          card.classList.add('border-[#EEDBCA]', 'bg-white');
+        }
+      }
+    }
+
+    // 更新旋轉摘要標籤
+    function updateRotateSummaryBadge() {
+      const badge = document.getElementById('rotateSummaryBadge');
+      if (!badge || !currentPdfDocForPreview) return;
+
+      const nonZeroCount = Object.values(pageRotationsMap).filter(a => a !== 0).length;
+      if (nonZeroCount === 0) {
+        badge.textContent = '全部預設 (0°)';
+        badge.className = 'text-[10px] bg-[#FFF2DE] text-retro-brick font-bold px-2 py-0.5 rounded-full border border-[#F4DCB5]';
+      } else {
+        badge.textContent = `已旋轉 ${nonZeroCount} 個頁面`;
+        badge.className = 'text-[10px] bg-[#EFF8F5] text-[#2E6852] font-black px-2 py-0.5 rounded-full border border-[#BDE0D3]';
+      }
+    }
+
     // 切換轉圖範圍模式
     function onImgPageModeChange(mode) {
       const btnAll = document.getElementById('modeBtnAll');
@@ -1124,7 +1337,6 @@
       const btnCustom = document.getElementById('modeBtnCustom');
       const container = document.getElementById('imgCustomPageContainer');
 
-      // 重置邊框樣式
       [btnAll, btnFirst, btnCustom].forEach(btn => {
         if (!btn) return;
         btn.classList.remove('border-[#84D2DE]', 'bg-[#F0FBFC]');
@@ -1147,7 +1359,7 @@
       }
     }
 
-    // 載入 PDF 縮圖並渲染在窗格中
+    // 載入 PDF 轉圖片之縮圖
     async function loadPdfThumbnailsForPreview() {
       const grid = document.getElementById('thumbnailsGrid');
       const empty = document.getElementById('thumbnailsEmptyPrompt');
@@ -1182,12 +1394,10 @@
         if (loading) loading.classList.add('hidden');
         if (grid) grid.classList.remove('hidden');
 
-        // 預設若尚未勾選，勾選第 1 頁
         if (selectedCustomPageSet.size === 0) {
           selectedCustomPageSet.add(1);
         }
 
-        // 依序產生縮圖卡片
         for (let pageNum = 1; pageNum <= total; pageNum++) {
           const card = document.createElement('div');
           card.id = `thumb-card-${pageNum}`;
@@ -1198,7 +1408,6 @@
           }`;
           card.onclick = () => togglePageSelection(pageNum);
 
-          // 縮圖 Canvas 容器
           const canvasWrap = document.createElement('div');
           canvasWrap.className = 'w-full aspect-[3/4] bg-white rounded-lg overflow-hidden flex items-center justify-center border border-[#EEDBCA]/60 shadow-xs relative';
 
@@ -1206,7 +1415,6 @@
           canvas.className = 'max-w-full max-h-full object-contain';
           canvasWrap.appendChild(canvas);
 
-          // 勾選核取圖示
           const checkIcon = document.createElement('div');
           checkIcon.id = `thumb-check-${pageNum}`;
           checkIcon.className = `absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
@@ -1217,7 +1425,6 @@
           checkIcon.innerHTML = '✓';
           canvasWrap.appendChild(checkIcon);
 
-          // 頁碼說明
           const label = document.createElement('div');
           label.className = 'mt-1 text-[11px] font-black text-retro-dark flex items-center justify-center gap-1';
           label.innerHTML = `<span>第 ${pageNum} 頁</span>`;
@@ -1226,7 +1433,6 @@
           card.appendChild(label);
           grid.appendChild(card);
 
-          // 輕量化渲染縮圖
           renderSingleThumbnailCanvas(currentPdfDocForPreview, pageNum, canvas);
         }
 
@@ -1246,7 +1452,6 @@
     async function renderSingleThumbnailCanvas(pdfDoc, pageNum, canvas) {
       try {
         const page = await pdfDoc.getPage(pageNum);
-        // 縮圖採用 0.28 ~ 0.35 比例節省記憶體與加快渲染速度
         const viewport = page.getViewport({ scale: 0.32 });
         canvas.width = viewport.width;
         canvas.height = viewport.height;
@@ -1263,7 +1468,6 @@
       }
     }
 
-    // 點擊縮圖切換勾選狀態
     function togglePageSelection(pageNum) {
       if (selectedCustomPageSet.has(pageNum)) {
         selectedCustomPageSet.delete(pageNum);
@@ -1275,7 +1479,6 @@
       updateSelectedCountBadge();
     }
 
-    // 更新單張縮圖卡片的外觀
     function updateThumbnailCardUi(pageNum) {
       const card = document.getElementById(`thumb-card-${pageNum}`);
       const checkIcon = document.getElementById(`thumb-check-${pageNum}`);
@@ -1291,7 +1494,6 @@
       }
     }
 
-    // 快捷全選
     function selectAllThumbnails() {
       if (!currentPdfDocForPreview) return;
       for (let p = 1; p <= currentPdfDocForPreview.numPages; p++) {
@@ -1302,7 +1504,6 @@
       updateSelectedCountBadge();
     }
 
-    // 快捷清空
     function clearThumbnailsSelection() {
       if (!currentPdfDocForPreview) return;
       selectedCustomPageSet.clear();
@@ -1313,7 +1514,6 @@
       updateSelectedCountBadge();
     }
 
-    // 將已選集合轉換為字串如 "1-3, 5, 8"
     function syncPageInputFromSet() {
       const input = document.getElementById('imgCustomPages');
       if (!input) return;
@@ -1339,7 +1539,6 @@
       input.value = ranges.join(', ');
     }
 
-    // 使用者在文字框手動輸入時，即時回饋至縮圖預覽卡片
     function onCustomPageInputChanged() {
       const inputVal = (document.getElementById('imgCustomPages')?.value || '').trim();
       selectedCustomPageSet.clear();
@@ -1377,18 +1576,7 @@
       }
     }
 
-    // Helper to toggle custom page input in PDF to image
-    function toggleCustomPageInput(show) {
-      const container = document.getElementById('imgCustomPageContainer');
-      if (!container) return;
-      if (show) {
-        container.classList.remove('hidden');
-      } else {
-        container.classList.add('hidden');
-      }
-    }
-
-    // Tool: PDF to Image (High Resolution Rendering via PDF.js + JSZip bundle)
+    // Tool: PDF to Image
     async function processPdfToImage() {
       if (typeof pdfjsLib === 'undefined') {
         throw new Error('PDF 渲染核心未載入，請確認網路連線正常！');
@@ -1405,7 +1593,6 @@
       const pdf = await loadingTask.promise;
       const totalPages = pdf.numPages;
 
-      // Determine page mode
       const pageModeEl = document.querySelector('input[name="imgPageMode"]:checked');
       const pageMode = pageModeEl ? pageModeEl.value : 'all';
       
@@ -1416,7 +1603,6 @@
       } else if (pageMode === 'first') {
         targetPages = [1];
       } else if (pageMode === 'custom') {
-        // 優先讀取點選縮圖之 Set 集合，若為空再解析文字輸入框
         if (selectedCustomPageSet.size > 0) {
           targetPages = Array.from(selectedCustomPageSet).filter(p => p >= 1 && p <= totalPages);
         } else {
@@ -1468,13 +1654,11 @@
         const page = await pdf.getPage(pageNum);
         const viewport = page.getViewport({ scale: scaleVal });
 
-        // Create detached canvas for crisp off-screen rendering
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
 
-        // If JPEG, fill white background to prevent black background transparency issue
         if (format === 'jpeg') {
           context.fillStyle = '#FFFFFF';
           context.fillRect(0, 0, canvas.width, canvas.height);
@@ -1486,25 +1670,19 @@
         };
         await page.render(renderContext).promise;
 
-        // Export as Blob
         const blob = await new Promise(resolve => {
           canvas.toBlob(resolve, mimeType, 0.92);
         });
 
-        renderedImages.push({
-          pageNum,
-          blob
-        });
+        renderedImages.push({ pageNum, blob });
       }
 
-      // If only single image generated, direct download
       if (renderedImages.length === 1) {
         updateProgress(100, '圖片生成完畢！準備下載...');
         const single = renderedImages[0];
         triggerDownload(single.blob, `${baseName}_第${single.pageNum}頁.${ext}`, mimeType);
         showToast(`🎉 第 ${single.pageNum} 頁圖片已成功下載！`, 'success');
       } else {
-        // Multiple images: zip packaging
         updateProgress(90, `打包 ${renderedImages.length} 張圖片為 ZIP 壓縮檔...`);
         const zip = new JSZip();
         renderedImages.forEach(img => {
@@ -1527,8 +1705,10 @@
 
     // Update Progress bar helper
     function updateProgress(percent, text) {
-      progressBar.style.width = percent + '%';
-      progressPercent.textContent = percent + '%';
+      if (percent !== null && percent !== undefined) {
+        progressBar.style.width = percent + '%';
+        progressPercent.textContent = percent + '%';
+      }
       if (text) progressText.textContent = text;
     }
 
@@ -1545,13 +1725,716 @@
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
-    // 核心動作分發執行控制器（修復按鈕點擊無反應問題）
+    // Tool: Rotate PDF
+    async function processRotate() {
+      updateProgress(30, '正在讀取 PDF 文件結構與各頁面旋轉角度...');
+      const file = selectedFiles[0];
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+      const pages = pdfDoc.getPages();
+      const total = pages.length;
+
+      const keys = Object.keys(pageRotationsMap);
+      const hasCustomRotations = keys.some(p => pageRotationsMap[p] !== 0);
+
+      if (hasCustomRotations) {
+        pages.forEach((page, index) => {
+          const pageNum = index + 1;
+          const addAngle = pageRotationsMap[pageNum] || 0;
+          if (addAngle !== 0) {
+            const currentRotation = page.getRotation().angle;
+            page.setRotation(degrees((currentRotation + addAngle) % 360));
+          }
+        });
+      } else {
+        pages.forEach(page => {
+          const currentRotation = page.getRotation().angle;
+          page.setRotation(degrees((currentRotation + 90) % 360));
+        });
+      }
+
+      updateProgress(85, '封裝旋轉後的 PDF...');
+      const pdfBytes = await pdfDoc.save();
+      updateProgress(100, '旋轉完成！準備下載！');
+      
+      triggerDownload(pdfBytes, `rotated_${file.name}`);
+      showToast('🎉 PDF 頁面旋轉完成，已開始自動下載！', 'success');
+      setTimeout(closeToolModal, 1200);
+    }
+
+    // Tool: Merge PDF
+    async function processMerge() {
+      if (selectedFiles.length < 2) {
+        showToast('請至少新增 2 個 PDF 檔案才能合併喔！', 'warning');
+        return;
+      }
+
+      updateProgress(15, '正在啟動 PDF 合併引擎...');
+      const mergedPdf = await PDFDocument.create();
+
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        const stepPercent = 15 + Math.round(((i + 1) / selectedFiles.length) * 70);
+        updateProgress(stepPercent, `正在整合第 ${i + 1}/${selectedFiles.length} 份: ${file.name}`);
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+        copiedPages.forEach((page) => mergedPdf.addPage(page));
+      }
+
+      updateProgress(92, '正在封裝並生成最終合併檔案...');
+      const mergedBytes = await mergedPdf.save();
+      updateProgress(100, '合併成功！開始下載！');
+
+      triggerDownload(mergedBytes, 'merged_babu_document.pdf');
+      showToast(`🎉 成功將 ${selectedFiles.length} 份 PDF 合併為單一檔案！`, 'success');
+      setTimeout(closeToolModal, 1200);
+    }
+
+    // Tool: Page Numbers
+    async function processPageNumbers() {
+      updateProgress(20, '正在讀取 PDF 頁面結構...');
+      const file = selectedFiles[0];
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+      const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+      
+      const position = document.getElementById('pageNumPosition')?.value || 'bottom-center';
+      const format = document.getElementById('pageNumFormat')?.value || 'simple';
+      
+      const pages = pdfDoc.getPages();
+      const total = pages.length;
+      
+      pages.forEach((page, index) => {
+        const pageNum = index + 1;
+        let text = `${pageNum}`;
+        if (format === 'full') {
+          text = `${pageNum} / ${total}`;
+        } else if (format === 'english') {
+          text = `Page ${pageNum} of ${total}`;
+        }
+        
+        const textSize = 11;
+        const textWidth = font.widthOfTextAtSize(text, textSize);
+        const { width, height } = page.getSize();
+        
+        let x = (width - textWidth) / 2;
+        let y = 25;
+        
+        if (position === 'bottom-right') {
+          x = width - textWidth - 35;
+          y = 25;
+        } else if (position === 'top-right') {
+          x = width - textWidth - 35;
+          y = height - 30;
+        }
+        
+        page.drawText(text, {
+          x,
+          y,
+          size: textSize,
+          font,
+          color: rgb(0.25, 0.2, 0.3)
+        });
+      });
+      
+      updateProgress(85, '生成帶有頁碼的 PDF...');
+      const pdfBytes = await pdfDoc.save();
+      updateProgress(100, '頁碼添加完成！');
+      triggerDownload(pdfBytes, `numbered_${file.name}`);
+      showToast('🎉 PDF 頁碼已成功添加！', 'success');
+      setTimeout(closeToolModal, 1200);
+    }
+
+    // Tool: Watermark
+    async function processWatermark() {
+      updateProgress(25, '正在刻劃浮水印文字...');
+      const file = selectedFiles[0];
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+
+      const text = document.getElementById('watermarkText')?.value.trim() || '機密文件';
+      const opacity = parseFloat(document.getElementById('watermarkOpacity')?.value || '0.25');
+      const angle = parseInt(document.getElementById('watermarkAngle')?.value || '45', 10);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 600;
+      canvas.height = 300;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.translate(300, 150);
+      ctx.rotate((-angle * Math.PI) / 180);
+      ctx.font = 'bold 36px "Noto Sans TC", sans-serif';
+      ctx.fillStyle = `rgba(178, 70, 41, ${opacity})`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 0, 0);
+
+      const pngDataUrl = canvas.toDataURL('image/png');
+      const pngBytes = await fetch(pngDataUrl).then(res => res.arrayBuffer());
+      const watermarkImage = await pdfDoc.embedPng(pngBytes);
+
+      updateProgress(65, '正在烙印浮水印至各頁面...');
+      const pages = pdfDoc.getPages();
+      pages.forEach(page => {
+        const { width, height } = page.getSize();
+        page.drawImage(watermarkImage, {
+          x: width / 2 - 200,
+          y: height / 2 - 100,
+          width: 400,
+          height: 200,
+          opacity: 1
+        });
+      });
+
+      updateProgress(90, '封裝帶浮水印的 PDF...');
+      const pdfBytes = await pdfDoc.save();
+      updateProgress(100, '浮水印加入完成！');
+
+      triggerDownload(pdfBytes, `watermarked_${file.name}`);
+      showToast('🎉 浮水印已成功印製至每一頁！', 'success');
+      setTimeout(closeToolModal, 1200);
+    }
+
+    // Tool: Organize Pages
+    async function processOrganize() {
+      updateProgress(30, '分析頁面結構...');
+      const file = selectedFiles[0];
+      const arrayBuffer = await file.arrayBuffer();
+      const srcDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+      const totalPages = srcDoc.getPageCount();
+
+      const rangeStr = (document.getElementById('pageRangeInput')?.value || '').trim();
+      const newDoc = await PDFDocument.create();
+
+      let targetIndices = [];
+      if (!rangeStr) {
+        targetIndices = srcDoc.getPageIndices();
+      } else {
+        const parts = rangeStr.split(',');
+        for (const p of parts) {
+          const trimmed = p.trim();
+          if (trimmed.includes('-')) {
+            const [start, end] = trimmed.split('-').map(n => parseInt(n.trim(), 10));
+            if (!isNaN(start) && !isNaN(end)) {
+              for (let i = Math.min(start, end); i <= Math.max(start, end); i++) {
+                const pageIdx = i - 1;
+                if (pageIdx >= 0 && pageIdx < totalPages && !targetIndices.includes(pageIdx)) {
+                  targetIndices.push(pageIdx);
+                }
+              }
+            }
+          } else {
+            const num = parseInt(trimmed, 10);
+            if (!isNaN(num)) {
+              const pageIdx = num - 1;
+              if (pageIdx >= 0 && pageIdx < totalPages && !targetIndices.includes(pageIdx)) {
+                targetIndices.push(pageIdx);
+              }
+            }
+          }
+        }
+      }
+
+      if (targetIndices.length === 0) {
+        throw new Error('請輸入有效的頁碼範圍！');
+      }
+
+      updateProgress(65, `正在擷取並重整指定的 ${targetIndices.length} 個頁面...`);
+      const copiedPages = await newDoc.copyPages(srcDoc, targetIndices);
+      copiedPages.forEach(page => newDoc.addPage(page));
+
+      updateProgress(90, '生成整理後的 PDF...');
+      const pdfBytes = await newDoc.save();
+      updateProgress(100, '頁面整理完成！');
+      triggerDownload(pdfBytes, `organized_${file.name}`);
+      showToast('🎉 PDF 頁面整理完成，已開始下載！', 'success');
+      setTimeout(closeToolModal, 1200);
+    }
+
+    // Helper: 處理純掃描件 OCR 備用辨識
+    async function performImageOCR(canvas, base64Png, ocrLang) {
+      if (typeof Tesseract !== 'undefined') {
+        try {
+          const lang = ocrLang.includes('chi_tra') ? 'chi_tra+eng' : 'eng';
+          const res = await Tesseract.recognize(canvas, lang, {
+            logger: m => {
+              if (m.status === 'recognizing text') {
+                updateProgress(Math.round(m.progress * 100), `AI 視覺 OCR 辨識中 (${Math.round(m.progress * 100)}%)...`);
+              }
+            }
+          });
+          return res.data.text;
+        } catch (e) {
+          console.warn('OCR 辨識略過:', e);
+          return '';
+        }
+      }
+      return '';
+    }
+
+    // Helper: XML 特殊字元跳脫
+    function escapeXml(unsafe) {
+      if (!unsafe) return '';
+      return unsafe.toString().replace(/[<>&'"]/g, function (c) {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+          default: return c;
+        }
+      });
+    }
+
+    // 核心演算法：基於 2D 空間幾何座標的段落與真實表格抽取引擎
+    async function extractTextAndTablesFromPdf(arrayBuffer, ocrMode = 'auto', ocrLang = 'chi_tra+eng') {
+      if (typeof pdfjsLib === 'undefined') {
+        throw new Error('PDF 文本解析模組尚未就緒，請檢查網路連線或重試！');
+      }
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      const numPages = pdf.numPages;
+      const pagesData = [];
+
+      for (let i = 1; i <= numPages; i++) {
+        const stepPercent = 20 + Math.round((i / numPages) * 70);
+        updateProgress(stepPercent, `正在分析第 ${i} / ${numPages} 頁 2D 幾何結構與表格排版...`);
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+
+        const rawItems = (textContent.items || []).filter(item => item.str && item.str.trim().length > 0);
+        const hasTextLayer = rawItems.length > 0;
+        const needsOcr = (ocrMode === 'force') || (ocrMode === 'auto' && rawItems.length < 5);
+
+        let blocks = [];
+
+        if (needsOcr) {
+          updateProgress(stepPercent, `🔍 偵測到第 ${i} 頁為掃描影像，啟動視覺 OCR 引擎分析表格...`);
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          const dataUrl = canvas.toDataURL('image/png');
+          const recognizedText = await performImageOCR(canvas, dataUrl.split(',')[1], ocrLang);
+
+          if (recognizedText) {
+            const rawLines = recognizedText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            let currentTableRows = [];
+
+            rawLines.forEach(line => {
+              // 透過制表符號、逗號或多重空格切分表格列
+              const parts = line.split(/\t+|\s{2,}|\|/).map(p => p.trim()).filter(p => p.length > 0);
+              if (parts.length >= 2) {
+                currentTableRows.push(parts);
+              } else {
+                if (currentTableRows.length > 0) {
+                  blocks.push({ type: 'table', rows: currentTableRows });
+                  currentTableRows = [];
+                }
+                blocks.push({ type: 'paragraph', text: line });
+              }
+            });
+            if (currentTableRows.length > 0) {
+              blocks.push({ type: 'table', rows: currentTableRows });
+            }
+          }
+        } else if (hasTextLayer) {
+          // --- 2D 空間座標聚類重構表格 ---
+          // 整理座標項目 (PDF 座標系：原點在左下角，Y 向上增加)
+          const itemsWithCoord = rawItems.map(item => {
+            const x = Math.round(item.transform[4]);
+            const y = Math.round(item.transform[5]);
+            const width = Math.round(item.width || 0);
+            const height = Math.round(item.height || 10);
+            return { str: item.str.trim(), x, y, width, height };
+          });
+
+          // 1. 根據 Y 座標分行 (允許 ±5px 垂直誤差)
+          itemsWithCoord.sort((a, b) => b.y - a.y || a.x - b.x);
+          const lines = [];
+          itemsWithCoord.forEach(item => {
+            let matchedLine = lines.find(l => Math.abs(l.y - item.y) <= 6);
+            if (matchedLine) {
+              matchedLine.items.push(item);
+              matchedLine.y = Math.round((matchedLine.y + item.y) / 2); // 平滑 Y
+            } else {
+              lines.push({ y: item.y, items: [item] });
+            }
+          });
+
+          // 2. 針對每行內部按 X 座標排序
+          lines.forEach(line => {
+            line.items.sort((a, b) => a.x - b.x);
+          });
+
+          // 3. 識別連續的多欄行並組合成表格區塊
+          let currentTableRows = [];
+
+          for (let l = 0; l < lines.length; l++) {
+            const line = lines[l];
+            // 若該行中有多個 item，且彼此間距較大，或明確形成多欄
+            let isRowMultiColumn = false;
+            let cells = [];
+
+            if (line.items.length >= 2) {
+              let currentCell = line.items[0].str;
+              for (let k = 1; k < line.items.length; k++) {
+                const prev = line.items[k - 1];
+                const curr = line.items[k];
+                const gap = curr.x - (prev.x + prev.width);
+                if (gap > 18) { // 兩文字塊之間有大於 18px 的留白，視為不同欄位
+                  cells.push(currentCell.trim());
+                  currentCell = curr.str;
+                } else {
+                  currentCell += ' ' + curr.str;
+                }
+              }
+              if (currentCell.trim()) cells.push(currentCell.trim());
+              if (cells.length >= 2) isRowMultiColumn = true;
+            }
+
+            if (isRowMultiColumn) {
+              currentTableRows.push(cells);
+            } else {
+              if (currentTableRows.length >= 2) {
+                // 將欄位長度正規化為最大欄位數
+                const maxCols = Math.max(...currentTableRows.map(r => r.length));
+                const normalized = currentTableRows.map(r => {
+                  while (r.length < maxCols) r.push('');
+                  return r;
+                });
+                blocks.push({ type: 'table', rows: normalized });
+                currentTableRows = [];
+              } else if (currentTableRows.length === 1) {
+                // 若只有單一行多欄，轉為一般段落
+                blocks.push({ type: 'paragraph', text: currentTableRows[0].join('    ') });
+                currentTableRows = [];
+              }
+
+              // 一般行合併為段落
+              const lineText = line.items.map(it => it.str).join(' ');
+              if (lineText.trim()) {
+                blocks.push({ type: 'paragraph', text: lineText.trim() });
+              }
+            }
+          }
+
+          if (currentTableRows.length >= 2) {
+            const maxCols = Math.max(...currentTableRows.map(r => r.length));
+            const normalized = currentTableRows.map(r => {
+              while (r.length < maxCols) r.push('');
+              return r;
+            });
+            blocks.push({ type: 'table', rows: normalized });
+          } else if (currentTableRows.length === 1) {
+            blocks.push({ type: 'paragraph', text: currentTableRows[0].join('    ') });
+          }
+        }
+
+        pagesData.push({
+          pageNumber: i,
+          blocks: blocks,
+          isOcr: needsOcr
+        });
+      }
+
+      return pagesData;
+    }
+
+    // Helper: 產生支援真實微軟表格標籤 (<w:tbl>) 的 .docx 檔案
+    async function generateDocxBlobWithTables(pagesData, fileName) {
+      const zip = new JSZip();
+
+      zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`);
+
+      zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+
+      zip.file("word/_rels/document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`);
+
+      let bodyXml = `
+        <w:p>
+          <w:pPr>
+            <w:jc w:val="center"/>
+            <w:spacing w:after="160"/>
+          </w:pPr>
+          <w:r>
+            <w:rPr>
+              <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
+              <w:b/>
+              <w:sz w:val="34"/>
+              <w:color w:val="41354D"/>
+            </w:rPr>
+            <w:t xml:space="preserve">${escapeXml(fileName.replace(/\.pdf$/i, ''))}</w:t>
+          </w:r>
+        </w:p>
+        <w:p>
+          <w:pPr>
+            <w:jc w:val="center"/>
+            <w:spacing w:after="280"/>
+          </w:pPr>
+          <w:r>
+            <w:rPr>
+              <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
+              <w:sz w:val="18"/>
+              <w:color w:val="7A6E82"/>
+            </w:rPr>
+            <w:t xml:space="preserve">由 Babu PDF 工具箱轉換 (保留完整表格結構) • ${new Date().toLocaleDateString('zh-TW')}</w:t>
+          </w:r>
+        </w:p>
+      `;
+
+      pagesData.forEach((page) => {
+        bodyXml += `
+          <w:p>
+            <w:pPr>
+              <w:spacing w:before="240" w:after="140"/>
+              <w:pBdr>
+                <w:bottom w:val="single" w:sz="6" w:space="4" w:color="5D9B84"/>
+              </w:pBdr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
+                <w:b/>
+                <w:sz w:val="22"/>
+                <w:color w:val="5D9B84"/>
+              </w:rPr>
+              <w:t xml:space="preserve">=== 第 ${page.pageNumber} 頁 ${page.isOcr ? '(AI OCR 辨識結果)' : ''} ===</w:t>
+            </w:r>
+          </w:p>
+        `;
+
+        if (!page.blocks || page.blocks.length === 0) {
+          bodyXml += `
+            <w:p>
+              <w:r>
+                <w:rPr>
+                  <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
+                  <w:i/>
+                  <w:sz w:val="20"/>
+                  <w:color w:val="9E90A3"/>
+                </w:rPr>
+                <w:t xml:space="preserve">（此頁畫面未辨識到文字內容或表格）</w:t>
+              </w:r>
+            </w:p>
+          `;
+        } else {
+          page.blocks.forEach((block) => {
+            if (block.type === 'paragraph') {
+              bodyXml += `
+                <w:p>
+                  <w:pPr>
+                    <w:spacing w:line="360" w:lineRule="auto" w:after="120"/>
+                  </w:pPr>
+                  <w:r>
+                    <w:rPr>
+                      <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
+                      <w:sz w:val="24"/>
+                      <w:color w:val="2B2233"/>
+                    </w:rPr>
+                    <w:t xml:space="preserve">${escapeXml(block.text)}</w:t>
+                  </w:r>
+                </w:p>
+              `;
+            } else if (block.type === 'table') {
+              // 構建標準 Word XML 表格標籤 <w:tbl>
+              bodyXml += `
+                <w:tbl>
+                  <w:tblPr>
+                    <w:tblW w:w="5000" w:type="pct"/>
+                    <w:tblBorders>
+                      <w:top w:val="single" w:sz="4" w:space="0" w:color="5D9B84"/>
+                      <w:left w:val="single" w:sz="4" w:space="0" w:color="5D9B84"/>
+                      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="5D9B84"/>
+                      <w:right w:val="single" w:sz="4" w:space="0" w:color="5D9B84"/>
+                      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="D2E7DF"/>
+                      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="D2E7DF"/>
+                    </w:tblBorders>
+                    <w:tblCellMar>
+                      <w:top w:w="120" w:type="dxa"/>
+                      <w:left w:w="160" w:type="dxa"/>
+                      <w:bottom w:w="120" w:type="dxa"/>
+                      <w:right w:w="160" w:type="dxa"/>
+                    </w:tblCellMar>
+                  </w:tblPr>
+              `;
+
+              block.rows.forEach((row, rIdx) => {
+                const isHeader = rIdx === 0;
+                bodyXml += `
+                  <w:tr>
+                    <w:trPr>
+                      ${isHeader ? '<w:tblHeader/>' : ''}
+                    </w:trPr>
+                `;
+
+                row.forEach((cellText) => {
+                  bodyXml += `
+                    <w:tc>
+                      <w:tcPr>
+                        ${isHeader ? '<w:shd w:val="clear" w:color="auto" w:fill="EFF8F5"/>' : ''}
+                        <w:vAlign w:val="center"/>
+                      </w:tcPr>
+                      <w:p>
+                        <w:pPr>
+                          <w:spacing w:after="0" w:line="240" w:lineRule="auto"/>
+                        </w:pPr>
+                        <w:r>
+                          <w:rPr>
+                            <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
+                            ${isHeader ? '<w:b/><w:color w:val="2E6852"/>' : '<w:color w:val="41354D"/>'}
+                            <w:sz w:val="21"/>
+                          </w:rPr>
+                          <w:t xml:space="preserve">${escapeXml(cellText)}</w:t>
+                        </w:r>
+                      </w:p>
+                    </w:tc>
+                  `;
+                });
+
+                bodyXml += `</w:tr>`;
+              });
+
+              bodyXml += `</w:tbl>
+                <w:p><w:pPr><w:spacing w:after="160"/></w:pPr></w:p>
+              `;
+            }
+          });
+        }
+      });
+
+      const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    ${bodyXml}
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+
+      zip.file("word/document.xml", documentXml);
+
+      return await zip.generateAsync({
+        type: "blob",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 }
+      });
+    }
+
+    // Helper: 產生保留多欄表格真實結構的 Excel (.xlsx) 檔案
+    function generateExcelBlobFromBlocks(pagesData) {
+      if (typeof XLSX === 'undefined') {
+        throw new Error('Excel 處理引擎載入中，請稍候重試！');
+      }
+      const wb = XLSX.utils.book_new();
+
+      pagesData.forEach((page) => {
+        let sheetAoa = [];
+
+        if (page.blocks && page.blocks.length > 0) {
+          page.blocks.forEach(block => {
+            if (block.type === 'paragraph') {
+              sheetAoa.push([block.text]);
+            } else if (block.type === 'table') {
+              block.rows.forEach(r => sheetAoa.push(r));
+              sheetAoa.push([]); // 空行分隔
+            }
+          });
+        } else {
+          sheetAoa.push(['(此頁未偵測到表格數據)']);
+        }
+
+        const ws = XLSX.utils.aoa_to_sheet(sheetAoa);
+        XLSX.utils.book_append_sheet(wb, ws, `Page ${page.pageNumber}`);
+      });
+
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      return new Blob([excelBuffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+    }
+
+    // Tool: 格式轉換核心處理 (已整合 2D 表格保留與 Word / Excel)
+    async function processConversion(toolId) {
+      const file = selectedFiles[0];
+      const arrayBuffer = await file.arrayBuffer();
+
+      const ocrMode = document.getElementById('ocrModeSelect')?.value || 'auto';
+      const ocrLang = document.getElementById('ocrLangSelect')?.value || 'chi_tra+eng';
+
+      updateProgress(15, '正在啟動 2D 空間幾何與表格重構引擎...');
+      // 若剛剛在預覽視窗已解析過，可直接使用快取提高速度
+      const pagesData = parsedPagesStructuredData || await extractTextAndTablesFromPdf(arrayBuffer, ocrMode, ocrLang);
+      const baseName = file.name.replace(/\.pdf$/i, '');
+
+      if (toolId === 'pdf-to-word') {
+        updateProgress(85, '正在封裝包含標準 <w:tbl> 表格之 Word (.docx)...');
+        const docxBlob = await generateDocxBlobWithTables(pagesData, file.name);
+        updateProgress(100, 'Word 檔案轉換成功！表格已完整保留！');
+        
+        triggerDownload(
+          docxBlob, 
+          `${baseName}.docx`, 
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        );
+        showToast('🎉 成功轉換為 Word！表格與欄位格線已完整保留！', 'success');
+      } else if (toolId === 'pdf-to-excel') {
+        updateProgress(80, '正在將 2D 矩陣表格轉換為 Excel 工作表...');
+        const excelBlob = generateExcelBlobFromBlocks(pagesData);
+        updateProgress(100, 'Excel 試算表轉換成功！');
+
+        triggerDownload(
+          excelBlob,
+          `${baseName}.xlsx`,
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        showToast('🎉 成功轉換為 Excel！表格已分欄對齊！', 'success');
+      } else if (toolId === 'pdf-to-ppt') {
+        updateProgress(80, '正在編排投影片大綱結構...');
+        const docxBlob = await generateDocxBlobWithTables(pagesData, `[投影片大綱] ${file.name}`);
+        updateProgress(100, '投影片大綱匯出成功！');
+
+        triggerDownload(
+          docxBlob,
+          `${baseName}_slides.docx`,
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        );
+        showToast('🎉 已將每頁投影片排版為文件，可直接匯入 PowerPoint 製作簡報！', 'success');
+      }
+
+      setTimeout(closeToolModal, 1200);
+    }
+
+    // 核心動作分發執行控制器（全面檢查與嚴格異常捕獲）
     async function executeToolAction() {
       if (!currentToolId) return;
       const config = TOOLS_CONFIG[currentToolId];
       if (!config) return;
 
-      // 檔案數量基本檢驗
       if (config.multiple) {
         if (selectedFiles.length < 2) {
           showToast('合併 PDF 請至少新增 2 個檔案唷！', 'warning');
@@ -1598,664 +2481,16 @@
             break;
           case 'pdf-to-img':
             await processPdfToImage();
-    // Tool 1: Rotate PDF (Real PDF-Lib - 支援單頁自訂與批次角度寫入)
-    async function processRotate() {
-      updateProgress(30, '正在讀取 PDF 文件結構與各頁面旋轉角度...');
-      const file = selectedFiles[0];
-      const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-      const pages = pdfDoc.getPages();
-      const total = pages.length;
-
-      const keys = Object.keys(pageRotationsMap);
-      const hasCustomRotations = keys.some(p => pageRotationsMap[p] !== 0);
-
-      // 如果使用者有透過縮圖單獨旋轉，則按照每一頁設定的角度套用
-      if (hasCustomRotations) {
-        pages.forEach((page, index) => {
-          const pageNum = index + 1;
-          const addAngle = pageRotationsMap[pageNum] || 0;
-          if (addAngle !== 0) {
-            const currentRotation = page.getRotation().angle;
-            page.setRotation(degrees((currentRotation + addAngle) % 360));
-          }
-        });
-      } else {
-        // 若完全未點選單頁，則預設順時針翻轉 90 度
-        pages.forEach(page => {
-          const currentRotation = page.getRotation().angle;
-          page.setRotation(degrees((currentRotation + 90) % 360));
-        });
-      }
-
-      updateProgress(85, '封裝旋轉後的 PDF...');
-      const pdfBytes = await pdfDoc.save();
-      updateProgress(100, '旋轉完成！準備下載！');
-      
-      triggerDownload(pdfBytes, `rotated_${file.name}`);
-      showToast('🎉 PDF 頁面旋轉完成，已開始自動下載！', 'success');
-      setTimeout(closeToolModal, 1200);
-    }
-
-    // Tool 2: Merge PDF (Real PDF-Lib 完整修復與進度回饋)
-    async function processMerge() {
-      if (selectedFiles.length < 2) {
-        showToast('請至少新增 2 個 PDF 檔案才能合併喔！', 'warning');
-        return;
-      }
-
-      updateProgress(15, '正在啟動 PDF 合併引擎...');
-      const mergedPdf = await PDFDocument.create();
-
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-        const stepPercent = 15 + Math.round(((i + 1) / selectedFiles.length) * 70);
-        updateProgress(stepPercent, `正在整合第 ${i + 1}/${selectedFiles.length} 份: ${file.name}`);
-        
-        const arrayBuffer = await file.arrayBuffer();
-        // 啟用 ignoreEncryption 避免部分帶有權限旗標的 PDF 報錯中斷
-        const pdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-        copiedPages.forEach((page) => mergedPdf.addPage(page));
-      }
-
-      updateProgress(92, '正在封裝並生成最終合併檔案...');
-      const mergedBytes = await mergedPdf.save();
-      updateProgress(100, '合併成功！開始下載！');
-
-      triggerDownload(mergedBytes, 'merged_babu_document.pdf');
-      showToast(`🎉 成功將 ${selectedFiles.length} 份 PDF 合併為單一檔案！`, 'success');
-      setTimeout(closeToolModal, 1200);
-    }
-
-    // Tool 3: Page Numbers (Real PDF-Lib)
-    async function processPageNumbers() {
-      updateProgress(20, '正在讀取 PDF 頁面結構...');
-      const file = selectedFiles[0];
-      const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-      const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
-      
-      const position = document.getElementById('pageNumPosition')?.value || 'bottom-center';
-      const format = document.getElementById('pageNumFormat')?.value || 'simple';
-      
-      const pages = pdfDoc.getPages();
-      const total = pages.length;
-      
-      pages.forEach((page, index) => {
-        const pageNum = index + 1;
-        let text = `${pageNum}`;
-        if (format === 'full') {
-          text = `${pageNum} / ${total}`;
-        } else if (format === 'english') {
-          text = `Page ${pageNum} of ${total}`;
+            break;
+          default:
+            throw new Error('未知的工具指令');
         }
-        
-        const textSize = 11;
-        const textWidth = font.widthOfTextAtSize(text, textSize);
-        const { width, height } = page.getSize();
-        
-        let x = (width - textWidth) / 2;
-        let y = 25; // 預設底部
-        
-        if (position === 'bottom-right') {
-          x = width - textWidth - 35;
-          y = 25;
-        } else if (position === 'top-right') {
-          x = width - textWidth - 35;
-          y = height - 30;
-        }
-        
-        page.drawText(text, {
-          x,
-          y,
-          size: textSize,
-          font,
-          color: rgb(0.25, 0.2, 0.3)
-        });
-      });
-      
-      updateProgress(85, '生成帶有頁碼的 PDF...');
-      const pdfBytes = await pdfDoc.save();
-      updateProgress(100, '頁碼添加完成！');
-      triggerDownload(pdfBytes, `numbered_${file.name}`);
-      showToast('🎉 PDF 頁碼已成功添加！', 'success');
-      setTimeout(closeToolModal, 1200);
-    }
-
-    // Tool 4: Watermark (Canvas to PNG to PDF-Lib - 100% 支援中文防亂碼)
-    async function processWatermark() {
-      updateProgress(25, '正在刻劃浮水印文字...');
-      const file = selectedFiles[0];
-      const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-
-      const text = document.getElementById('watermarkText')?.value.trim() || '機密文件';
-      const opacity = parseFloat(document.getElementById('watermarkOpacity')?.value || '0.25');
-      const angle = parseInt(document.getElementById('watermarkAngle')?.value || '45', 10);
-
-      // 利用 HTML5 Canvas 繪製浮水印以完美支援繁體中文字型與任意透明度
-      const canvas = document.createElement('canvas');
-      canvas.width = 600;
-      canvas.height = 300;
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.translate(300, 150);
-      ctx.rotate((-angle * Math.PI) / 180);
-      ctx.font = 'bold 36px "Noto Sans TC", sans-serif';
-      ctx.fillStyle = `rgba(178, 70, 41, ${opacity})`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(text, 0, 0);
-
-      const pngDataUrl = canvas.toDataURL('image/png');
-      const pngBytes = await fetch(pngDataUrl).then(res => res.arrayBuffer());
-      const watermarkImage = await pdfDoc.embedPng(pngBytes);
-
-      updateProgress(65, '正在烙印浮水印至各頁面...');
-      const pages = pdfDoc.getPages();
-      pages.forEach(page => {
-        const { width, height } = page.getSize();
-        page.drawImage(watermarkImage, {
-          x: width / 2 - 200,
-          y: height / 2 - 100,
-          width: 400,
-          height: 200,
-          opacity: 1
-        });
-      });
-
-      updateProgress(90, '封裝帶浮水印的 PDF...');
-      const pdfBytes = await pdfDoc.save();
-      updateProgress(100, '浮水印加入完成！');
-
-      triggerDownload(pdfBytes, `watermarked_${file.name}`);
-      showToast('🎉 浮水印已成功印製至每一頁！', 'success');
-      setTimeout(closeToolModal, 1200);
-    }
-
-    // Tool 5: Organize Pages (Real PDF-Lib)
-    async function processOrganize() {
-      updateProgress(30, '分析頁面結構...');
-      const file = selectedFiles[0];
-      const arrayBuffer = await file.arrayBuffer();
-      const srcDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-      const totalPages = srcDoc.getPageCount();
-
-      const rangeStr = (document.getElementById('pageRangeInput')?.value || '').trim();
-      const newDoc = await PDFDocument.create();
-
-      let targetIndices = [];
-      if (!rangeStr) {
-        targetIndices = srcDoc.getPageIndices();
-      } else {
-        // Parse "1-3, 5" syntax
-        const parts = rangeStr.split(',');
-        for (const p of parts) {
-          const trimmed = p.trim();
-          if (trimmed.includes('-')) {
-            const [start, end] = trimmed.split('-').map(n => parseInt(n.trim(), 10));
-            if (!isNaN(start) && !isNaN(end)) {
-              for (let i = Math.min(start, end); i <= Math.max(start, end); i++) {
-                if (i >= 1 && i <= totalPages) targetIndices.push(i - 1);
-              }
-            }
-          } else {
-            const num = parseInt(trimmed, 10);
-            if (!isNaN(num) && num >= 1 && num <= totalPages) {
-              targetIndices.push(num - 1);
-            }
-          }
-        }
+      } catch (err) {
+        console.error('執行工具失敗:', err);
+        showToast(err.message || '處理過程中發生異常，請重試！', 'warning');
+        updateProgress(0, '處理中斷');
+        modalActionBtn.disabled = false;
       }
-
-      if (targetIndices.length === 0) {
-        throw new Error('未指定有效的頁碼範圍，請確認輸入格式 (例如：1-3, 5)。');
-      }
-
-      updateProgress(70, '擷取指定頁面中...');
-      const copied = await newDoc.copyPages(srcDoc, targetIndices);
-      copied.forEach(p => newDoc.addPage(p));
-
-      const pdfBytes = await newDoc.save();
-      updateProgress(100, '整理完畢！');
-
-      triggerDownload(pdfBytes, `organized_${file.name}`);
-      showToast('🎉 PDF 頁面整理完成！', 'success');
-      setTimeout(closeToolModal, 1200);
-    }
-
-    // Tool 6: Compress (Optimized re-save)
-    async function processCompress() {
-      updateProgress(30, '分析未壓縮元素與字型...');
-      const file = selectedFiles[0];
-      const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-      
-      updateProgress(65, '移除多餘元數據與重複物件流...');
-      const compressedBytes = await pdfDoc.save({ useObjectStreams: true });
-      updateProgress(100, '壓縮完成！');
-
-      triggerDownload(compressedBytes, `compressed_${file.name}`);
-      showToast('🎉 檔案瘦身成功！維持絕佳可讀性。', 'success');
-      setTimeout(closeToolModal, 1200);
-    }
-
-    // Tool 7: Encrypt (Secure Permissions Lock)
-    async function processEncrypt() {
-      const pwd = document.getElementById('encryptPassword')?.value;
-      const pwdConf = document.getElementById('encryptPasswordConfirm')?.value;
-
-      if (!pwd) {
-        showToast('請輸入要設定的密碼！', 'warning');
-        return;
-      }
-      if (pwd !== pwdConf) {
-        showToast('兩次密碼輸入不一致，請再次確認！', 'warning');
-        return;
-      }
-
-      updateProgress(45, '套用安全證書與雜湊金鑰...');
-      const file = selectedFiles[0];
-      const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-      pdfDoc.setTitle(`[受保護] ${file.name}`);
-      pdfDoc.setSubject(`密碼保護檔案: ${pwd.replace(/./g, '*')}`);
-      
-      const pdfBytes = await pdfDoc.save({ useObjectStreams: true });
-      updateProgress(100, '加密封裝完成！');
-
-      triggerDownload(pdfBytes, `encrypted_${file.name}`);
-      showToast('🎉 密碼設定完成，文件已受保護！', 'success');
-      setTimeout(closeToolModal, 1200);
-    }
-
-    // Helper: Escape XML special characters
-    function escapeXml(unsafe) {
-      if (!unsafe) return '';
-      return String(unsafe).replace(/[<>&'"]/g, function (c) {
-        switch (c) {
-          case '<': return '&lt;';
-          case '>': return '&gt;';
-          case '&': return '&amp;';
-          case '\'': return '&apos;';
-          case '"': return '&quot;';
-          default: return c;
-        }
-      });
-    }
-
-    // Helper: Perform AI Vision OCR using Gemini API with exponential backoff & Tesseract fallback
-    async function performImageOCR(canvas, base64PngData, lang = 'chi_tra+eng') {
-      const apiKey = "";
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-      const prompt = `你是一個專業的文件 OCR 光學文字辨識引擎。請辨識並完整提取這張掃描文件圖片中的所有文字內容（繁體中文、英文與數字表格）。
-規則：
-1. 繁體中文請精確還原，按原始文件的段落、行次、順序排列。
-2. 不要包含任何開場白、問候語、Markdown 區塊標籤（如不要加 \`\`\`），直接輸出辨識出的純文字內容。
-3. 若遇到表格或列表，請保留換行與適當空格對齊。`;
-
-      const payload = {
-        contents: [{
-          role: "user",
-          parts: [
-            { text: prompt },
-            {
-              inlineData: {
-                mimeType: "image/png",
-                data: base64PngData
-              }
-            }
-          ]
-        }]
-      };
-
-      // Try Gemini 3 Flash Vision OCR with exponential backoff
-      let delay = 1000;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          const resp = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          if (resp.ok) {
-            const data = await resp.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text && text.trim().length > 0) {
-              return text.trim();
-            }
-          }
-        } catch (e) {
-          // Retry with exponential backoff
-        }
-        await new Promise(r => setTimeout(r, delay));
-        delay *= 2;
-      }
-
-      // Fallback: Local Tesseract.js client-side OCR if online AI service fails
-      if (typeof Tesseract !== 'undefined') {
-        try {
-          const tesseractLang = lang.includes('chi_tra') ? 'chi_tra' : 'eng';
-          const { data: { text } } = await Tesseract.recognize(canvas, tesseractLang, {
-            logger: m => {
-              if (m.status === 'recognizing text') {
-                const p = Math.round(m.progress * 100);
-                updateProgress(null, `本機 OCR 辨識中 (${p}%)...`);
-              }
-            }
-          });
-          if (text && text.trim().length > 0) {
-            return text.trim();
-          }
-        } catch (tErr) {
-          console.warn('本機 Tesseract 辨識失敗:', tErr);
-        }
-      }
-
-      return '';
-    }
-
-    // Helper: Extract real text content from PDF pages with Automatic OCR for scanned documents
-    async function extractTextFromPdf(arrayBuffer, ocrMode = 'auto', ocrLang = 'chi_tra+eng') {
-      if (typeof pdfjsLib === 'undefined') {
-        throw new Error('PDF 文本解析模組尚未就緒，請檢查網路連線或重試！');
-      }
-      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      }
-
-      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-      const pdf = await loadingTask.promise;
-      const numPages = pdf.numPages;
-      const pagesData = [];
-
-      for (let i = 1; i <= numPages; i++) {
-        const stepPercent = 20 + Math.round((i / numPages) * 70);
-        updateProgress(stepPercent, `正在讀取第 ${i} / ${numPages} 頁文字與排版結構...`);
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-
-        let pageLines = [];
-
-        // Check if digital text stream is present and valid
-        if (ocrMode !== 'force' && textContent.items && textContent.items.length > 0) {
-          let lastY = null;
-          let currentLine = '';
-
-          for (const item of textContent.items) {
-            if (!item.str) continue;
-            const y = item.transform ? Math.round(item.transform[5]) : null;
-            if (lastY !== null && Math.abs(y - lastY) > 8) {
-              if (currentLine.trim()) pageLines.push(currentLine.trim());
-              currentLine = item.str;
-            } else {
-              currentLine += (currentLine.length > 0 && !currentLine.endsWith(' ') ? ' ' : '') + item.str;
-            }
-            lastY = y;
-          }
-          if (currentLine.trim()) {
-            pageLines.push(currentLine.trim());
-          }
-        }
-
-        // If no text layer found (e.g. Scanned images from SKM, Ricoh, printers) or forced OCR
-        const totalExtractedLength = pageLines.join('').trim().length;
-        const needsOcr = (ocrMode === 'force') || (ocrMode === 'auto' && totalExtractedLength < 5);
-
-        if (needsOcr) {
-          updateProgress(stepPercent, `🔍 偵測到第 ${i} 頁為掃描圖片，正在進行 AI 視覺 OCR 文字辨識...`);
-          
-          // Render page to high-resolution offscreen canvas
-          const viewport = page.getViewport({ scale: 2.0 });
-          const canvas = document.createElement('canvas');
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          const ctx = canvas.getContext('2d');
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          await page.render({
-            canvasContext: ctx,
-            viewport: viewport
-          }).promise;
-
-          const dataUrl = canvas.toDataURL('image/png');
-          const base64Data = dataUrl.split(',')[1];
-
-          // Trigger OCR
-          const recognizedText = await performImageOCR(canvas, base64Data, ocrLang);
-          if (recognizedText) {
-            // Split into clean lines
-            pageLines = recognizedText.split('\n')
-              .map(line => line.trim())
-              .filter(line => line.length > 0);
-          }
-        }
-
-        pagesData.push({
-          pageNumber: i,
-          lines: pageLines,
-          isOcr: needsOcr && pageLines.length > 0
-        });
-      }
-
-      return pagesData;
-    }
-
-    // Helper: Generate genuine, standard .docx (OpenXML) container using JSZip
-    async function generateDocxBlob(pagesData, fileName) {
-      const zip = new JSZip();
-
-      // 1. [Content_Types].xml
-      zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-</Types>`);
-
-      // 2. _rels/.rels
-      zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>`);
-
-      // 3. word/_rels/document.xml.rels
-      zip.file("word/_rels/document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`);
-
-      // 4. word/document.xml
-      let paragraphsXml = `
-        <w:p>
-          <w:pPr>
-            <w:jc w:val="center"/>
-            <w:spacing w:after="160"/>
-          </w:pPr>
-          <w:r>
-            <w:rPr>
-              <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
-              <w:b/>
-              <w:sz w:val="34"/>
-              <w:color w:val="41354D"/>
-            </w:rPr>
-            <w:t xml:space="preserve">${escapeXml(fileName.replace(/\.pdf$/i, ''))}</w:t>
-          </w:r>
-        </w:p>
-        <w:p>
-          <w:pPr>
-            <w:jc w:val="center"/>
-            <w:spacing w:after="300"/>
-          </w:pPr>
-          <w:r>
-            <w:rPr>
-              <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
-              <w:sz w:val="18"/>
-              <w:color w:val="7A6E82"/>
-            </w:rPr>
-            <w:t xml:space="preserve">由 Babu PDF 工具箱成功轉換 • ${new Date().toLocaleDateString('zh-TW')}</w:t>
-          </w:r>
-        </w:p>
-      `;
-
-        pagesData.forEach((page) => {
-        // Page header marker
-        paragraphsXml += `
-          <w:p>
-            <w:pPr>
-              <w:spacing w:before="240" w:after="140"/>
-              <w:pBdr>
-                <w:bottom w:val="single" w:sz="6" w:space="4" w:color="5D9B84"/>
-              </w:pBdr>
-            </w:pPr>
-            <w:r>
-              <w:rPr>
-                <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
-                <w:b/>
-                <w:sz w:val="22"/>
-                <w:color w:val="5D9B84"/>
-              </w:rPr>
-              <w:t xml:space="preserve">=== 第 ${page.pageNumber} 頁 ${page.isOcr ? '(AI OCR 辨識結果)' : ''} ===</w:t>
-            </w:r>
-          </w:p>
-        `;
-
-        if (page.lines.length === 0) {
-          paragraphsXml += `
-            <w:p>
-              <w:r>
-                <w:rPr>
-                  <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
-                  <w:i/>
-                  <w:sz w:val="20"/>
-                  <w:color w:val="9E90A3"/>
-                </w:rPr>
-                <w:t xml:space="preserve">（此頁畫面未辨識到文字內容，請確認原圖清晰度）</w:t>
-              </w:r>
-            </w:p>
-          `;
-        } else {
-          page.lines.forEach((line) => {
-            paragraphsXml += `
-              <w:p>
-                <w:pPr>
-                  <w:spacing w:line="360" w:lineRule="auto" w:after="120"/>
-                </w:pPr>
-                <w:r>
-                  <w:rPr>
-                    <w:rFonts w:ascii="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei"/>
-                    <w:sz w:val="24"/>
-                    <w:color w:val="2B2233"/>
-                  </w:rPr>
-                  <w:t xml:space="preserve">${escapeXml(line)}</w:t>
-                </w:r>
-              </w:p>
-            `;
-          });
-        }
-      });
-
-      const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:body>
-    ${paragraphsXml}
-    <w:sectPr>
-      <w:pgSz w:w="11906" w:h="16838"/>
-      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/>
-    </w:sectPr>
-  </w:body>
-</w:document>`;
-
-      zip.file("word/document.xml", documentXml);
-
-      return await zip.generateAsync({
-        type: "blob",
-        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        compression: "DEFLATE",
-        compressionOptions: { level: 6 }
-      });
-    }
-
-    // Helper: Generate genuine Excel (.xlsx) file using SheetJS
-    function generateExcelBlob(pagesData) {
-      if (typeof XLSX === 'undefined') {
-        throw new Error('Excel 處理引擎載入中，請稍候重試！');
-      }
-      const wb = XLSX.utils.book_new();
-
-      pagesData.forEach((page) => {
-        const rows = page.lines.map(line => {
-          return line.split(/\s{2,}|\t/);
-        });
-
-        const sheetData = rows.length > 0 ? rows : [['(此頁未偵測到純文字或表格數據)']];
-        const ws = XLSX.utils.aoa_to_sheet(sheetData);
-        XLSX.utils.book_append_sheet(wb, ws, `Page ${page.pageNumber}`);
-      });
-
-      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      return new Blob([excelBuffer], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-      });
-    }
-
-    // Tool: Format Conversion (PDF to Word / Excel / PPT)
-    async function processConversion(toolId) {
-      const file = selectedFiles[0];
-      const arrayBuffer = await file.arrayBuffer();
-
-      const ocrMode = document.getElementById('ocrModeSelect')?.value || 'auto';
-      const ocrLang = document.getElementById('ocrLangSelect')?.value || 'chi_tra+eng';
-
-      updateProgress(15, '正在啟動 PDF 文字與排版解析引擎...');
-      const pagesData = await extractTextFromPdf(arrayBuffer, ocrMode, ocrLang);
-      const baseName = file.name.replace(/\.pdf$/i, '');
-
-      if (toolId === 'pdf-to-word') {
-        updateProgress(85, '正在建構微軟標準 OpenXML (.docx) 封裝...');
-        const docxBlob = await generateDocxBlob(pagesData, file.name);
-        updateProgress(100, 'Word 檔案轉換成功！');
-        
-        triggerDownload(
-          docxBlob, 
-          `${baseName}.docx`, 
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        );
-        showToast('🎉 成功轉換為 Word (.docx)！已完成文字提取與 OCR 辨識。', 'success');
-      } else if (toolId === 'pdf-to-excel') {
-        updateProgress(80, '正在將頁面結構轉換為 Excel (.xlsx) 工作表...');
-        const excelBlob = generateExcelBlob(pagesData);
-        updateProgress(100, 'Excel 試算表轉換成功！');
-
-        triggerDownload(
-          excelBlob,
-          `${baseName}.xlsx`,
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        );
-        showToast('🎉 成功轉換為 Excel (.xlsx) 試算表！', 'success');
-      } else if (toolId === 'pdf-to-ppt') {
-        updateProgress(80, '正在編排投影片大綱結構...');
-        const docxBlob = await generateDocxBlob(pagesData, `[投影片大綱] ${file.name}`);
-        updateProgress(100, '投影片大綱匯出成功！');
-
-        triggerDownload(
-          docxBlob,
-          `${baseName}_slides.docx`,
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        );
-        showToast('🎉 已將每頁投影片排版為文件，可直接匯入 PowerPoint 製作簡報！', 'success');
-      }
-
-      setTimeout(closeToolModal, 1200);
-    }
-
-    // Generic Simulation fallback
-    async function simulateGenericProcessing(title) {
-      updateProgress(50, '進行檔案運算中...');
-      await new Promise(r => setTimeout(r, 800));
-      updateProgress(100, '處理完成！');
-      showToast(`✨ ${title} 處理成功！`, 'success');
-      setTimeout(closeToolModal, 1000);
     }
 
     function filterCategory(cat, btnElement) {
@@ -2311,12 +2546,10 @@
 
       container.appendChild(toast);
 
-      // Animate in
       setTimeout(() => {
         toast.classList.remove('translate-y-3', 'opacity-0');
       }, 10);
 
-      // Animate out
       setTimeout(() => {
         toast.classList.add('opacity-0', 'translate-y-2');
         setTimeout(() => toast.remove(), 300);
